@@ -1,39 +1,36 @@
 # SmartPrompt
 
-TODO: Delete this and the text below, and describe your gem
+SmartPrompt 是一个强大的 Ruby gem，提供了一种领域特定语言（DSL），使其他 Ruby 程序能够更加方便、自然地调用各种大型语言模型（LLM）的能力。
 
-Welcome to your new gem! In this directory, you'll find the files you need to be able to package up your Ruby library into a gem. Put your Ruby code in the file `lib/smart_prompt`. To experiment with that code, run `bin/console` for an interactive prompt.
+## 主要特性
 
-## Installation
+- 灵活的任务组合：以特定服务提供商 + 特定 LLM + 特定 prompt 的方式组合各种任务
+- 子任务嵌套：支持以 DSL 形式组合调用其他子任务
+- 性能优化：在保证质量的同时，提供性能最优或成本最低的解决方案
 
-TODO: Replace `UPDATE_WITH_YOUR_GEM_NAME_IMMEDIATELY_AFTER_RELEASE_TO_RUBYGEMS_ORG` with your gem name right after releasing it to RubyGems.org. Please do not do it earlier due to security reasons. Alternatively, replace this section with instructions to install your gem from git if you don't plan to release to RubyGems.org.
+## 安装
 
-Install the gem and add to the application's Gemfile by executing:
+将 gem 安装并添加到应用程序的 Gemfile 中，执行以下命令：
 
-```bash
-bundle add UPDATE_WITH_YOUR_GEM_NAME_IMMEDIATELY_AFTER_RELEASE_TO_RUBYGEMS_ORG
+```
+$ bundle add smart_prompt
 ```
 
-If bundler is not being used to manage dependencies, install the gem by executing:
+如果不使用 bundler 来管理依赖，可以通过执行以下命令来安装 gem：
 
-```bash
-gem install UPDATE_WITH_YOUR_GEM_NAME_IMMEDIATELY_AFTER_RELEASE_TO_RUBYGEMS_ORG
+```
+$ gem install smart_prompt
 ```
 
-## Usage
+## 用法
 
-TODO: Write usage instructions here
+以下是一些基本用法示例：
 
-## Development
+### 基本使用
 
-After checking out the repo, run `bin/setup` to install dependencies. You can also run `bin/console` for an interactive prompt that will allow you to experiment.
-
-To install this gem onto your local machine, run `bundle exec rake install`. To release a new version, update the version number in `version.rb`, and then run `bundle exec rake release`, which will create a git tag for the version, push git commits and the created tag, and push the `.gem` file to [rubygems.org](https://rubygems.org).
-
-## Contributing
-
-Bug reports and pull requests are welcome on GitHub at https://github.com/[USERNAME]/smart_prompt.
-
-## License
-
-The gem is available as open source under the terms of the [MIT License](https://opensource.org/licenses/MIT).
+```
+require 'smart_prompt'
+engine = SmartPrompt::Engine.new('./config/llm_config.yml')
+result = engine.call_worker(:daily_report, {location: "Shanghai"}) 
+puts result
+```
