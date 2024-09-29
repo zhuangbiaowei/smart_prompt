@@ -42,6 +42,24 @@ module SmartPrompt
     end
   end
 
+  class LlamacppAdapter < LLMAdapter
+    def initialize(config)
+      super
+      @client = OpenAI::Client.new(
+        uri_base: @config['url']
+      )
+    end
+    def send_request(messages, model=nil)
+      response = @client.chat(
+        parameters: {
+          messages: messages,
+          temperature: @config['temperature'] || 0.7
+        }
+      )
+      response.dig("choices", 0, "message", "content")
+    end
+  end
+
   class OllamaAdapter < LLMAdapter
     def initialize(config)
       super
