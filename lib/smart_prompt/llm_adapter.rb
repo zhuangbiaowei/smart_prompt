@@ -18,8 +18,12 @@ module SmartPrompt
   class OpenAIAdapter < LLMAdapter
     def initialize(config)
       super
+      api_key = @config['api_key']
+      if api_key.is_a?(String) && api_key.start_with?('ENV[') && api_key.end_with?(']')
+        api_key = eval(api_key)
+      end      
       @client = OpenAI::Client.new(
-        access_token: @config['api_key'],
+        access_token: api_key,
         uri_base: @config['url'],
         request_timeout: 240
       )
