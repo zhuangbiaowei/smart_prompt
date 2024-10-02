@@ -14,8 +14,6 @@ Gem::Specification.new do |spec|
   spec.license = "MIT"
   spec.required_ruby_version = ">= 3.0.0"
 
-  spec.metadata["allowed_push_host"] = "TODO: Set to your gem server 'https://example.com'"
-
   spec.metadata["homepage_uri"] = spec.homepage
   spec.metadata["source_code_uri"] = "https://github.com/zhuangbiaowei/smart_prompt"
   spec.metadata["changelog_uri"] = "https://github.com/zhuangbiaowei/smart_prompt/blob/master/CHANGELOG.md"
@@ -35,6 +33,11 @@ Gem::Specification.new do |spec|
 
   # Uncomment to register a new dependency of your gem
   # spec.add_dependency "example-gem", "~> 1.0"
+  spec.add_dependency "yaml", "~> 0.3.0"
+  spec.add_dependency "ruby-openai", "~> 7.1.0"
+  spec.add_dependency "ollama-ai", "~> 1.3.0"
+  spec.add_dependency "json", "~> 2.7.1"
+  spec.add_dependency "safe_ruby", "~> 1.0.4"
 
   # For more information and examples about making a new gem, check out our
   # guide at: https://bundler.io/guides/creating_gem.html

@@ -8,14 +8,15 @@ module SmartPrompt
       @messages = []
       @engine = engine
       @adapters = engine.adapters
+      @llms = engine.llms
       @templates = engine.templates
       @current_adapter = engine.current_adapter
       @last_response = nil
     end
 
-    def use(adapter_name)
-      raise "Adapter #{adapter_name} not configured" unless @adapters.key?(adapter_name)
-      @current_adapter = adapter_name
+    def use(llm_name)
+      raise "Adapter #{adapter_name} not configured" unless @llms.key?(llm_name)
+      @current_llm = @llms[llm_name]
       self
     end
 
@@ -38,8 +39,8 @@ module SmartPrompt
     end
 
     def send_msg
-      raise "No adapter selected" if @current_adapter.nil?
-      @last_response = @adapters[@current_adapter].send_request(@messages, @model_name)
+      raise "No LLM selected" if @current_llm.nil?
+      @last_response = @current_llm.send_request(@messages, @model_name)
       @messages=[]
       @messages << { role: 'system', content: @sys_msg }
       @last_response

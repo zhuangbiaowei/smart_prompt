@@ -1,9 +1,10 @@
 module SmartPrompt
     class Engine
-      attr_reader :config_file, :config, :adapters, :current_adapter, :templates
+      attr_reader :config_file, :config, :adapters, :current_adapter, :llms, :templates
       def initialize(config_file)
         @config_file = config_file
         @adapters={}
+        @llms={}
         @templates={}
         load_config(config_file)
       end
@@ -11,13 +12,18 @@ module SmartPrompt
       def load_config(config_file)
         @config_file = config_file
         @config = YAML.load_file(config_file)
-        @config['adapters'].each do |adapter_name, adapter_config|
-          adapter_class = SmartPrompt.const_get("#{adapter_name.capitalize}Adapter")          
-          @adapters[adapter_name] = adapter_class.new(adapter_config)
+        @config['adapters'].each do |adapter_name, adapter_class|
+          adapter_class = SmartPrompt.const_get(adapter_class)
+          @adapters[adapter_name] = adapter_class
         end
-        @current_adapter = @config['default_adapter'] if @config['default_adapter']        
-        @config['templates'].each do |template_name, template_file|
-          @templates[template_name] = PromptTemplate.new(template_file)
+        @config['llms'].each do |llm_name,llm_config|
+          adapter_class = @adapters[llm_config['adapter']]
+          @llms[llm_name]=adapter_class.new(llm_config)
+        end
+        @current_llm = @config['default_llm'] if @config['default_llm']
+        Dir.glob(File.join(@config['template_path'], '*.erb')).each do |file|
+          template_name = file.gsub(@config['template_path']+"/","").gsub("\.erb","")
+          @templates[template_name] = PromptTemplate.new(file)
         end
         load_workers
       end

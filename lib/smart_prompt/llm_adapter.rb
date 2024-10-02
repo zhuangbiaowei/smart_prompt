@@ -15,7 +15,7 @@ module SmartPrompt
     end
   end
 
-  class OpenaiAdapter < LLMAdapter
+  class OpenAIAdapter < LLMAdapter
     def initialize(config)
       super
       @client = OpenAI::Client.new(
