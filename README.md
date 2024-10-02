@@ -24,6 +24,10 @@ If you don't use a bundler to manage dependencies, you can install the gem by ex
 $ gem install smart_prompt
 ```
 
+## Usage
+
+The following are some examples of basic usage:
+
 ### llm_config.yml
 
 ```
@@ -47,10 +51,6 @@ default_llm: siliconflow
 worker_path: "./workers"
 template_path: "./templates"
 ```
-
-## Usage
-
-The following are some examples of basic usage:
 
 ### Basic usage
 
