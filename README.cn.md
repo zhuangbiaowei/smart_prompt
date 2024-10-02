@@ -26,15 +26,6 @@ $ gem install smart_prompt
 
 以下是一些基本用法示例：
 
-### 基本使用
-
-```
-require 'smart_prompt'
-engine = SmartPrompt::Engine.new('./config/llm_config.yml')
-result = engine.call_worker(:daily_report, {location: "Shanghai"}) 
-puts result
-```
-
 ### 配置文件
 
 ```
@@ -57,4 +48,66 @@ llms:
 default_llm: siliconflow
 worker_path: "./workers"
 template_path: "./templates"
+```
+
+### 基本使用
+
+```
+require 'smart_prompt'
+engine = SmartPrompt::Engine.new('./config/llm_config.yml')
+result = engine.call_worker(:daily_report, {location: "Shanghai"}) 
+puts result
+```
+
+### workers/daily_report.rb
+
+```
+SmartPrompt.define_worker :daily_report do
+    use "ollama"
+    model "gemma2"
+    system "You are a helpful report writer."
+    weather = call_worker(:weather_summary, { location: params[:location], date: "today" })
+    prompt :daily_report, { weather: weather, location: params[:location] }
+    send_msg
+end
+```
+
+### workers/weather_summary.rb
+
+```
+SmartPrompt.define_worker :weather_summary do
+  use "ollama"
+  model "gemma2"
+  sys_msg "You are a helpful weather assistant."
+  prompt :weather, { location: params[:location], date: params[:date] }
+  weather_info = send_msg
+  prompt :summarize, { text: weather_info }
+  send_msg
+end
+```
+
+### templates/daily_report.erb
+
+```
+Please create a brief daily report for <%= location %> based on the following weather information:
+
+<%= weather %>
+
+The report should include:
+1. A summary of the weather
+2. Any notable events or conditions
+3. Recommendations for residents
+```
+### templates/weather.erb
+
+```
+What's the weather like in <%= location %> <%= date %>? Please provide a brief description including temperature and general conditions.
+```
+
+### templates/summarize.erb
+
+```
+Please summarize the following text in one sentence:
+
+<%= text %>
 ```
