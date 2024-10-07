@@ -7,6 +7,7 @@ require File.expand_path('../smart_prompt/worker', __FILE__)
 
 module SmartPrompt
   class Error < StandardError; end
+  attr_writer :logger
 
   def self.define_worker(name, &block)
     Worker.define(name, &block)
@@ -15,5 +16,11 @@ module SmartPrompt
   def self.run_worker(name, config_file, params = {})
     worker = Worker.new(name, config_file)
     worker.execute(params)
+  end
+  
+  def self.logger
+    @logger ||= Logger.new($stdout).tap do |log|
+      log.progname = self.name
+    end
   end
 end

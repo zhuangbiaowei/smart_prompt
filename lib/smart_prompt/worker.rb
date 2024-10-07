@@ -3,6 +3,7 @@ module SmartPrompt
     attr_reader :name, :config_file
 
     def initialize(name, engine)
+      SmartPrompt.logger.info "Create worker's name is #{name}"
       @name = name
       @engine = engine
       @config = engine.config

@@ -7,10 +7,12 @@ require 'ollama-ai'
 module SmartPrompt
   class LLMAdapter
     def initialize(config)
+      SmartPrompt.logger.info "Start create the SmartPrompt LLMAdapter."
       @config = config
     end
 
     def send_request(messages)
+      SmartPrompt.logger.error "LLMAdapter: Subclasses must implement send_request"
       raise NotImplementedError, "Subclasses must implement send_request"
     end
   end
@@ -30,11 +32,13 @@ module SmartPrompt
     end
 
     def send_request(messages, model=nil)
+      SmartPrompt.logger.info "OpenAIAdapter: Sending request to OpenAI"
       if model
         model_name = model
       else
         model_name = @config['model']        
       end
+      SmartPrompt.logger.info "OpenAIAdapter: Using model #{model_name}"
       response = @client.chat(
         parameters: {
           model: model_name,
@@ -42,6 +46,7 @@ module SmartPrompt
           temperature: @config['temperature'] || 0.7
         }
       )
+      SmartPrompt.logger.info "OpenAIAdapter: Received response from OpenAI"
       response.dig("choices", 0, "message", "content")
     end
   end
@@ -54,12 +59,14 @@ module SmartPrompt
       )
     end
     def send_request(messages, model=nil)
+      SmartPrompt.logger.info "LlamacppAdapter: Sending request to Llamacpp"
       response = @client.chat(
         parameters: {
           messages: messages,
           temperature: @config['temperature'] || 0.7
         }
       )
+      SmartPrompt.logger.info "LlamacppAdapter: Received response from Llamacpp"
       response.dig("choices", 0, "message", "content")
     end
   end
@@ -71,11 +78,13 @@ module SmartPrompt
     end
 
     def send_request(messages, model=nil)
+      SmartPrompt.logger.info "OllamaAdapter: Sending request to Ollama"
       if model
         model_name = model
       else
         model_name = @config['model']        
       end
+      SmartPrompt.logger.info "OllamaAdapter: Using model #{model_name}"
       response = @client.generate(
         {
           model: model_name,
@@ -83,6 +92,7 @@ module SmartPrompt
           stream: false
         }
       )
+      SmartPrompt.logger.info "OllamaAdapter: Received response from Ollama"
       return response[0]["response"]
     end
   end

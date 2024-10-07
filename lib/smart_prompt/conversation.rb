@@ -5,6 +5,7 @@ module SmartPrompt
     attr_reader :messages, :last_response, :config_file
 
     def initialize(engine)
+      SmartPrompt.logger.info "Create Conversation"
       @messages = []
       @engine = engine
       @adapters = engine.adapters
@@ -26,6 +27,7 @@ module SmartPrompt
 
     def prompt(template_name, params = {})
       template_name = template_name.to_s
+      SmartPrompt.logger.info "Use template #{template_name}"
       raise "Template #{template_name} not found" unless @templates.key?(template_name)
       content = @templates[template_name].render(params)
       @messages << { role: 'user', content: content }

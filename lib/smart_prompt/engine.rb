@@ -2,6 +2,7 @@ module SmartPrompt
     class Engine
       attr_reader :config_file, :config, :adapters, :current_adapter, :llms, :templates
       def initialize(config_file)
+        SmartPrompt.logger.info "Start create the SmartPrompt engine."
         @config_file = config_file
         @adapters={}
         @llms={}
@@ -10,6 +11,7 @@ module SmartPrompt
       end
 
       def load_config(config_file)
+        SmartPrompt.logger.info "Loading configuration from file: #{config_file}"
         @config_file = config_file
         @config = YAML.load_file(config_file)
         @config['adapters'].each do |adapter_name, adapter_class|
@@ -35,14 +37,25 @@ module SmartPrompt
       end
         
       def call_worker(worker_name, params = {})
+        SmartPrompt.logger.info "Calling worker: #{worker_name} with params: #{params}"
         worker = get_worker(worker_name)
-        worker.execute(params)
+        
+        begin
+          result = worker.execute(params)
+          SmartPrompt.logger.info "Worker #{worker_name} executed successfully"
+          result
+        rescue => e
+          SmartPrompt.logger.error "Error executing worker #{worker_name}: #{e.message}"
+          SmartPrompt.logger.debug e.backtrace.join("\n")
+          raise
+        end
       end
   
       private
   
       def get_worker(worker_name)
-        worker = Worker.new(worker_name, self)
+        SmartPrompt.logger.info "Creating worker instance for: #{worker_name}"
+        Worker.new(worker_name, self)
       end
     end
   end
