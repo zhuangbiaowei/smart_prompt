@@ -2,18 +2,21 @@ module SmartPrompt
     class Engine
       attr_reader :config_file, :config, :adapters, :current_adapter, :llms, :templates
       def initialize(config_file)
-        SmartPrompt.logger.info "Start create the SmartPrompt engine."
         @config_file = config_file
         @adapters={}
         @llms={}
         @templates={}
         load_config(config_file)
+        SmartPrompt.logger.info "Started create the SmartPrompt engine."
       end
 
       def load_config(config_file)
-        SmartPrompt.logger.info "Loading configuration from file: #{config_file}"
         @config_file = config_file
         @config = YAML.load_file(config_file)
+        if @config['logger_file']
+          SmartPrompt.logger = Logger.new(@config['logger_file'])
+        end
+        SmartPrompt.logger.info "Loading configuration from file: #{config_file}"
         @config['adapters'].each do |adapter_name, adapter_class|
           adapter_class = SmartPrompt.const_get(adapter_class)
           @adapters[adapter_name] = adapter_class

@@ -17,6 +17,10 @@ module SmartPrompt
     worker = Worker.new(name, config_file)
     worker.execute(params)
   end
+
+  def self.logger=(logger)
+    @logger = logger
+  end
   
   def self.logger
     @logger ||= Logger.new($stdout).tap do |log|
