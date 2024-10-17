@@ -2,11 +2,18 @@ require File.expand_path('../smart_prompt/version', __FILE__)
 require File.expand_path('../smart_prompt/engine', __FILE__)
 require File.expand_path('../smart_prompt/conversation', __FILE__)
 require File.expand_path('../smart_prompt/llm_adapter', __FILE__)
+require File.expand_path('../smart_prompt/openai_adapter', __FILE__)
+require File.expand_path('../smart_prompt/llamacpp_adapter', __FILE__)
+require File.expand_path('../smart_prompt/ollama_adapter', __FILE__)
 require File.expand_path('../smart_prompt/prompt_template', __FILE__)
 require File.expand_path('../smart_prompt/worker', __FILE__)
 
 module SmartPrompt
   class Error < StandardError; end
+  class ConfigurationError < Error; end
+  class LLMAPIError < Error; end
+  class CallWorkerError < Error; end
+
   attr_writer :logger
 
   def self.define_worker(name, &block)

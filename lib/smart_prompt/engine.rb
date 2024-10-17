@@ -11,26 +11,39 @@ module SmartPrompt
       end
 
       def load_config(config_file)
-        @config_file = config_file
-        @config = YAML.load_file(config_file)
-        if @config['logger_file']
-          SmartPrompt.logger = Logger.new(@config['logger_file'])
-        end
-        SmartPrompt.logger.info "Loading configuration from file: #{config_file}"
-        @config['adapters'].each do |adapter_name, adapter_class|
-          adapter_class = SmartPrompt.const_get(adapter_class)
-          @adapters[adapter_name] = adapter_class
-        end
-        @config['llms'].each do |llm_name,llm_config|
-          adapter_class = @adapters[llm_config['adapter']]
-          @llms[llm_name]=adapter_class.new(llm_config)
-        end
-        @current_llm = @config['default_llm'] if @config['default_llm']
-        Dir.glob(File.join(@config['template_path'], '*.erb')).each do |file|
-          template_name = file.gsub(@config['template_path']+"/","").gsub("\.erb","")
-          @templates[template_name] = PromptTemplate.new(file)
-        end
-        load_workers
+        begin
+          @config_file = config_file
+          @config = YAML.load_file(config_file)
+          if @config['logger_file']
+            SmartPrompt.logger = Logger.new(@config['logger_file'])
+          end
+          SmartPrompt.logger.info "Loading configuration from file: #{config_file}"
+          @config['adapters'].each do |adapter_name, adapter_class|
+            adapter_class = SmartPrompt.const_get(adapter_class)
+            @adapters[adapter_name] = adapter_class
+          end
+          @config['llms'].each do |llm_name,llm_config|
+            adapter_class = @adapters[llm_config['adapter']]
+            @llms[llm_name]=adapter_class.new(llm_config)
+          end
+          @current_llm = @config['default_llm'] if @config['default_llm']
+          Dir.glob(File.join(@config['template_path'], '*.erb')).each do |file|
+            template_name = file.gsub(@config['template_path']+"/","").gsub("\.erb","")
+            @templates[template_name] = PromptTemplate.new(file)
+          end
+          load_workers          
+        rescue Psych::SyntaxError => ex
+          SmartPrompt.logger.error "YAML syntax error in config file: #{ex.message}"
+          raise ConfigurationError, "Invalid YAML syntax in config file: #{ex.message}"
+        rescue Errno::ENOENT => ex
+          SmartPrompt.logger.error "Config file not found: #{ex.message}"
+          raise ConfigurationError, "Config file not found: #{ex.message}"
+        rescue StandardError => ex
+          SmartPrompt.logger.error "Error loading configuration: #{ex.message}"
+          raise ConfigurationError, "Error loading configuration: #{ex.message}"
+        ensure
+          SmartPrompt.logger.info "Configuration loaded successfully"          
+        end        
       end
 
       def load_workers
