@@ -1,0 +1,63 @@
+PATH
+  remote: .
+  specs:
+    smart_prompt (0.1.7)
+      json (~> 2.7.1)
+      ollama-ai (~> 1.3.0)
+      retriable (~> 3.1.2)
+      ruby-openai (~> 7.1.0)
+      safe_ruby (~> 1.0.4)
+      yaml (~> 0.3.0)
+
+GEM
+  remote: https://rubygems.org/
+  specs:
+    childprocess (5.1.0)
+      logger (~> 1.5)
+    ethon (0.16.0)
+      ffi (>= 1.15.0)
+    event_stream_parser (1.0.0)
+    faraday (2.10.1)
+      faraday-net_http (>= 2.0, < 3.2)
+      logger
+    faraday-multipart (1.0.4)
+      multipart-post (~> 2)
+    faraday-net_http (3.1.1)
+      net-http
+    faraday-typhoeus (1.1.0)
+      faraday (~> 2.0)
+      typhoeus (~> 1.4)
+    ffi (1.17.0)
+    ffi (1.17.0-x86_64-linux-gnu)
+    json (2.7.1)
+    logger (1.6.1)
+    multipart-post (2.4.1)
+    net-http (0.4.1)
+      uri
+    ollama-ai (1.3.0)
+      faraday (~> 2.10)
+      faraday-typhoeus (~> 1.1)
+      typhoeus (~> 1.4, >= 1.4.1)
+    rake (13.1.0)
+    retriable (3.1.2)
+    ruby-openai (7.1.0)
+      event_stream_parser (>= 0.3.0, < 2.0.0)
+      faraday (>= 1)
+      faraday-multipart (>= 1)
+    safe_ruby (1.0.4)
+      childprocess (>= 0.3.9)
+    typhoeus (1.4.1)
+      ethon (>= 0.9.0)
+    uri (0.13.0)
+    yaml (0.3.0)
+
+PLATFORMS
+  ruby
+  x86_64-linux-gnu
+
+DEPENDENCIES
+  rake (~> 13.0)
+  smart_prompt!
+
+BUNDLED WITH
+   2.5.22
