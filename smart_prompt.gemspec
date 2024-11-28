@@ -38,7 +38,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency "ollama-ai", "~> 1.3.0"
   spec.add_dependency "json", "~> 2.7.1"
   spec.add_dependency "safe_ruby", "~> 1.0.4"
-
+  spec.add_dependency 'retriable', '~> 3.1.2'
   # For more information and examples about making a new gem, check out our
   # guide at: https://bundler.io/guides/creating_gem.html
 end

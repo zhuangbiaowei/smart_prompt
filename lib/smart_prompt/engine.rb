@@ -51,6 +51,15 @@ module SmartPrompt
           require(file)
         end
       end
+
+      def check_worker(worker_name)
+        if SmartPrompt::Worker.workers[worker_name]
+          return true
+        else
+          SmartPrompt.logger.warn "Invalid worker: #{worker_name}"
+          return false
+        end
+      end
         
       def call_worker(worker_name, params = {})
         SmartPrompt.logger.info "Calling worker: #{worker_name} with params: #{params}"

@@ -6,7 +6,7 @@ module SmartPrompt
       super
       begin
         @client = Ollama.new(credentials: { address: @config['url'] })
-      rescue Ollama::Error => e
+      rescue Ollama::Errors => e
         SmartPrompt.logger.error "Failed to initialize Ollama client: #{e.message}"
         raise LLMAPIError, "Invalid Ollama configuration: #{e.message}"
       rescue SocketError => e
@@ -36,18 +36,9 @@ module SmartPrompt
             stream: false
             }
         )
-      rescue Ollama::Error => e
+      rescue Ollama::Errors => e
         SmartPrompt.logger.error "Ollama API error: #{e.message}"
-        raise LLMAPIError, "Ollama API error: #{e.message}"
-      rescue Ollama::ConnectionError => e
-        SmartPrompt.logger.error "Connection error: Unable to reach Ollama API"
-        raise LLMAPIError, "Connection error: Unable to reach Ollama API"
-      rescue Ollama::TimeoutError => e
-        SmartPrompt.logger.error "Request to Ollama API timed out"
-        raise LLMAPIError, "Request to Ollama API timed out"
-      rescue Ollama::InvalidRequestError => e
-        SmartPrompt.logger.error "Invalid request to Ollama API: #{e.message}"
-        raise LLMAPIError, "Invalid request to Ollama API: #{e.message}"
+        raise LLMAPIError, "Ollama API error: #{e.message}"      
       rescue JSON::ParserError => e
         SmartPrompt.logger.error "Failed to parse Ollama API response"
         raise LLMAPIError, "Failed to parse Ollama API response"
@@ -58,7 +49,31 @@ module SmartPrompt
         SmartPrompt.logger.info "Successful send a message"
       end
       SmartPrompt.logger.info "OllamaAdapter: Received response from Ollama"
-      return response[0]["response"]
+      return response.dig(0,"response")
+    end
+
+    def embeddings(text, model)
+      SmartPrompt.logger.info "OllamaAdapter: get embeddings from Ollama"
+      if model
+        model_name = model
+      else
+        model_name = @config['model']        
+      end
+      SmartPrompt.logger.info "OllamaAdapter: Using model #{model_name}"
+      begin
+        response = @client.embeddings(
+            {
+              model: model_name,
+              prompt: text.to_s
+            }
+        )
+      rescue => e
+        SmartPrompt.logger.error "Unexpected error during Ollama request: #{e.message}"
+        raise Error, "Unexpected error during Ollama request: #{e.message}"
+      ensure
+        SmartPrompt.logger.info "Successful send a message"
+      end
+      return response.dig(0,"embedding")
     end
   end
 end

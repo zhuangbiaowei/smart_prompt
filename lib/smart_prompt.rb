@@ -1,5 +1,6 @@
 require File.expand_path('../smart_prompt/version', __FILE__)
 require File.expand_path('../smart_prompt/engine', __FILE__)
+require File.expand_path('../smart_prompt/api_handler', __FILE__)
 require File.expand_path('../smart_prompt/conversation', __FILE__)
 require File.expand_path('../smart_prompt/llm_adapter', __FILE__)
 require File.expand_path('../smart_prompt/openai_adapter', __FILE__)

@@ -17,7 +17,7 @@ module SmartPrompt
       rescue OpenAI::ConfigurationError => e
         SmartPrompt.logger.error "Failed to initialize OpenAI client: #{e.message}"
         raise LLMAPIError, "Invalid OpenAI configuration: #{e.message}"
-      rescue OpenAI::AuthenticationError => e
+      rescue OpenAI::Error => e
         SmartPrompt.logger.error "Failed to initialize OpenAI client: #{e.message}"
         raise LLMAPIError, "OpenAI authentication failed: #{e.message}"
       rescue SocketError => e
@@ -47,24 +47,12 @@ module SmartPrompt
             temperature: @config['temperature'] || 0.7
           }
         )
-      rescue OpenAI::APIError => e
+      rescue OpenAI::Error => e
         SmartPrompt.logger.error "OpenAI API error: #{e.message}"
         raise LLMAPIError, "OpenAI API error: #{e.message}"
-      rescue OpenAI::APIConnectionError => e
-        SmartPrompt.logger.error "Connection error: Unable to reach OpenAI API"
-        raise LLMAPIError, "Connection error: Unable to reach OpenAI API"
-      rescue OpenAI::APITimeoutError => e
-        SmartPrompt.logger.error "Request to OpenAI API timed out"
-        raise LLMAPIError, "Request to OpenAI API timed out"
-      rescue OpenAI::InvalidRequestError => e
-        SmartPrompt.logger.error "Invalid request to OpenAI API: #{e.message}"
-        raise LLMAPIError, "Invalid request to OpenAI API: #{e.message}"
-      rescue OpenAI::AuthenticationError => e
-        SmartPrompt.logger.error "Authentication error with OpenAI API: #{e.message}"
-        raise LLMAPIError, "Authentication error with OpenAI API: #{e.message}"
-      rescue OpenAI::RateLimitError => e
-        SmartPrompt.logger.error "Rate limit exceeded for OpenAI API"
-        raise LLMAPIError, "Rate limit exceeded for OpenAI API"
+      rescue OpenAI::MiddlewareErrors => e
+        SmartPrompt.logger.error "OpenAI HTTP Error: #{e.message}"
+        raise LLMAPIError, "OpenAI HTTP Error"
       rescue JSON::ParserError => e
         SmartPrompt.logger.error "Failed to parse OpenAI API response"
         raise LLMAPIError, "Failed to parse OpenAI API response"
@@ -76,6 +64,30 @@ module SmartPrompt
       end
       SmartPrompt.logger.info "OpenAIAdapter: Received response from OpenAI"
       response.dig("choices", 0, "message", "content")
+    end
+
+    def embeddings(text, model)
+      SmartPrompt.logger.info "OpenAIAdapter: get embeddings from Ollama"
+      if model
+        model_name = model
+      else
+        model_name = @config['model']        
+      end
+      SmartPrompt.logger.info "OpenAIAdapter: Using model #{model_name}"
+      begin
+        response = @client.embeddings(
+            parameters: {
+              model: model_name,
+              input: text.to_s
+            }
+        )
+      rescue => e
+        SmartPrompt.logger.error "Unexpected error during Ollama request: #{e.message}"
+        raise Error, "Unexpected error during Ollama request: #{e.message}"
+      ensure
+        SmartPrompt.logger.info "Successful send a message"
+      end
+      return response.dig("data", 0, "embedding")
     end
   end
 end
