@@ -31,7 +31,7 @@ module SmartPrompt
       end
     end
 
-    def send_request(messages, model=nil)
+    def send_request(messages, model=nil, send_request=0.7)
       SmartPrompt.logger.info "OpenAIAdapter: Sending request to OpenAI"
       if model
         model_name = model
@@ -44,7 +44,7 @@ module SmartPrompt
           parameters: {
             model: model_name,
             messages: messages,
-            temperature: @config['temperature'] || 0.7
+            temperature: @config['temperature'] || send_request
           }
         )
       rescue OpenAI::Error => e

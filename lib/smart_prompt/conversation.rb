@@ -28,6 +28,10 @@ module SmartPrompt
       @model_name = model_name
     end
 
+    def temperature(temperature)
+      @temperature = temperature
+    end
+
     def prompt(template_name, params = {})
       if template_name.class == Symbol
         template_name = template_name.to_s
@@ -50,7 +54,7 @@ module SmartPrompt
 
     def send_msg
       raise "No LLM selected" if @current_llm.nil?
-      @last_response = @current_llm.send_request(@messages, @model_name)
+      @last_response = @current_llm.send_request(@messages, @model_name, @temperature)
       @messages=[]
       @messages << { role: 'system', content: @sys_msg }
       @last_response
