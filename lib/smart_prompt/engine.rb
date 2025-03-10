@@ -10,11 +10,18 @@ module SmartPrompt
         SmartPrompt.logger.info "Started create the SmartPrompt engine."
       end
 
+      def create_dir(filename)
+        path = File::path(filename).to_s
+        parent_dir = File::dirname(path) 
+        Dir.mkdir(parent_dir, 0755) unless File.directory?(parent_dir)
+      end
+
       def load_config(config_file)
         begin
           @config_file = config_file
           @config = YAML.load_file(config_file)
           if @config['logger_file']
+            create_dir(@config['logger_file'])
             SmartPrompt.logger = Logger.new(@config['logger_file'])
           end
           SmartPrompt.logger.info "Loading configuration from file: #{config_file}"
@@ -60,11 +67,10 @@ module SmartPrompt
           return false
         end
       end
-        
+      
       def call_worker(worker_name, params = {})
         SmartPrompt.logger.info "Calling worker: #{worker_name} with params: #{params}"
-        worker = get_worker(worker_name)
-        
+        worker = get_worker(worker_name)        
         begin
           result = worker.execute(params)
           SmartPrompt.logger.info "Worker #{worker_name} executed successfully"
@@ -75,12 +81,23 @@ module SmartPrompt
           raise
         end
       end
-  
-      private
-  
+
+      def call_worker_by_stream(worker_name, params = {}, &proc)
+        SmartPrompt.logger.info "Calling worker: #{worker_name} with params: #{params}"
+        worker = get_worker(worker_name)        
+        begin
+          worker.execute_by_stream(params, &proc)
+          SmartPrompt.logger.info "Worker #{worker_name} executed(stream) successfully"          
+        rescue => e
+          SmartPrompt.logger.error "Error executing worker #{worker_name}: #{e.message}"
+          SmartPrompt.logger.debug e.backtrace.join("\n")
+          raise
+        end
+      end
+    private
       def get_worker(worker_name)
         SmartPrompt.logger.info "Creating worker instance for: #{worker_name}"
         Worker.new(worker_name, self)
       end
     end
-  end
+end

@@ -13,7 +13,7 @@ module SmartPrompt
           access_token: api_key,
           uri_base: @config['url'],
           request_timeout: 240
-        )        
+        )
       rescue OpenAI::ConfigurationError => e
         SmartPrompt.logger.error "Failed to initialize OpenAI client: #{e.message}"
         raise LLMAPIError, "Invalid OpenAI configuration: #{e.message}"
@@ -31,22 +31,33 @@ module SmartPrompt
       end
     end
 
-    def send_request(messages, model=nil, send_request=0.7)
+    def send_request(messages, model=nil, temperature=0.7, proc)
       SmartPrompt.logger.info "OpenAIAdapter: Sending request to OpenAI"
       if model
         model_name = model
       else
-        model_name = @config['model']        
+        model_name = @config['model']
       end
       SmartPrompt.logger.info "OpenAIAdapter: Using model #{model_name}"
       begin
-        response = @client.chat(
-          parameters: {
-            model: model_name,
-            messages: messages,
-            temperature: @config['temperature'] || send_request
-          }
-        )
+        if proc == nil
+          response = @client.chat(
+            parameters: {
+              model: model_name,
+              messages: messages,
+              temperature: @config['temperature'] || temperature
+            }
+          )
+        else
+          @client.chat(
+            parameters: {
+              model: model_name,
+              messages: messages,
+              temperature: @config['temperature'] || temperature,
+              stream: proc
+            }
+          )
+        end
       rescue OpenAI::Error => e
         SmartPrompt.logger.error "OpenAI API error: #{e.message}"
         raise LLMAPIError, "OpenAI API error: #{e.message}"
@@ -63,7 +74,9 @@ module SmartPrompt
         SmartPrompt.logger.info "Successful send a message"
       end
       SmartPrompt.logger.info "OpenAIAdapter: Received response from OpenAI"
-      response.dig("choices", 0, "message", "content")
+      if proc == nil
+        return response.dig("choices", 0, "message", "content")
+      end
     end
 
     def embeddings(text, model)

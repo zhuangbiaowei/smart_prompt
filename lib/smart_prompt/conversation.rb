@@ -52,7 +52,7 @@ module SmartPrompt
       self
     end
 
-    def send_msg
+    def send_msg_once
       raise "No LLM selected" if @current_llm.nil?
       @last_response = @current_llm.send_request(@messages, @model_name, @temperature)
       @messages=[]
@@ -60,13 +60,24 @@ module SmartPrompt
       @last_response
     end
 
-    def safe_send_msg
+    def send_msg
       Retriable.retriable(RETRY_OPTIONS) do
         raise ConfigurationError, "No LLM selected" if @current_llm.nil?
-        @last_response = @current_llm.send_request(@messages, @model_name)
+        @last_response = @current_llm.send_request(@messages, @model_name, @temperature)
         @messages=[]
         @messages << { role: 'system', content: @sys_msg }
         @last_response
+      end
+    rescue => e      
+      return "Failed to call LLM after #{MAX_RETRIES} attempts: #{e.message}"
+    end
+
+    def send_msg_by_stream(&proc)
+      Retriable.retriable(RETRY_OPTIONS) do
+        raise ConfigurationError, "No LLM selected" if @current_llm.nil?
+        @current_llm.send_request(@messages, @model_name, @temperature, proc) 
+        @messages=[]
+        @messages << { role: 'system', content: @sys_msg }
       end
     rescue => e
       return "Failed to call LLM after #{MAX_RETRIES} attempts: #{e.message}"

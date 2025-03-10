@@ -5,7 +5,6 @@ require File.expand_path('../smart_prompt/conversation', __FILE__)
 require File.expand_path('../smart_prompt/llm_adapter', __FILE__)
 require File.expand_path('../smart_prompt/openai_adapter', __FILE__)
 require File.expand_path('../smart_prompt/llamacpp_adapter', __FILE__)
-require File.expand_path('../smart_prompt/ollama_adapter', __FILE__)
 require File.expand_path('../smart_prompt/prompt_template', __FILE__)
 require File.expand_path('../smart_prompt/worker', __FILE__)
 
