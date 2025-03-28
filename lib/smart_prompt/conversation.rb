@@ -1,5 +1,5 @@
-require 'yaml'
-require 'retriable'
+require "yaml"
+require "retriable"
 require "numo/narray"
 
 module SmartPrompt
@@ -7,7 +7,7 @@ module SmartPrompt
     include APIHandler
     attr_reader :messages, :last_response, :config_file
 
-    def initialize(engine)
+    def initialize(engine, tools = nil)
       SmartPrompt.logger.info "Create Conversation"
       @messages = []
       @engine = engine
@@ -16,6 +16,7 @@ module SmartPrompt
       @templates = engine.templates
       @current_adapter = engine.current_adapter
       @last_response = nil
+      @tools = tools
     end
 
     def use(llm_name)
@@ -38,46 +39,49 @@ module SmartPrompt
         SmartPrompt.logger.info "Use template #{template_name}"
         raise "Template #{template_name} not found" unless @templates.key?(template_name)
         content = @templates[template_name].render(params)
-        @messages << { role: 'user', content: content }
+        @messages << { role: "user", content: content }
         self
       else
-        @messages << { role: 'user', content: template_name }
+        @messages << { role: "user", content: template_name }
         self
       end
     end
 
     def sys_msg(message)
       @sys_msg = message
-      @messages << { role: 'system', content: message }
+      @messages << { role: "system", content: message }
       self
     end
 
     def send_msg_once
       raise "No LLM selected" if @current_llm.nil?
       @last_response = @current_llm.send_request(@messages, @model_name, @temperature)
-      @messages=[]
-      @messages << { role: 'system', content: @sys_msg }
+      @messages = []
+      @messages << { role: "system", content: @sys_msg }
       @last_response
     end
 
     def send_msg
       Retriable.retriable(RETRY_OPTIONS) do
         raise ConfigurationError, "No LLM selected" if @current_llm.nil?
-        @last_response = @current_llm.send_request(@messages, @model_name, @temperature)
-        @messages=[]
-        @messages << { role: 'system', content: @sys_msg }
+        @last_response = @current_llm.send_request(@messages, @model_name, @temperature, @tools, nil)
+        if @last_response == ""
+          @last_response = @current_llm.last_response
+        end
+        @messages = []
+        @messages << { role: "system", content: @sys_msg }
         @last_response
       end
-    rescue => e      
+    rescue => e
       return "Failed to call LLM after #{MAX_RETRIES} attempts: #{e.message}"
     end
 
     def send_msg_by_stream(&proc)
       Retriable.retriable(RETRY_OPTIONS) do
         raise ConfigurationError, "No LLM selected" if @current_llm.nil?
-        @current_llm.send_request(@messages, @model_name, @temperature, proc) 
-        @messages=[]
-        @messages << { role: 'system', content: @sys_msg }
+        @current_llm.send_request(@messages, @model_name, @temperature, @tools, proc)
+        @messages = []
+        @messages << { role: "system", content: @sys_msg }
       end
     rescue => e
       return "Failed to call LLM after #{MAX_RETRIES} attempts: #{e.message}"
@@ -85,7 +89,7 @@ module SmartPrompt
 
     def normalize(x, length)
       if x.length > length
-        x = Numo::NArray.cast(x[0..length-1])      
+        x = Numo::NArray.cast(x[0..length - 1])
         norm = Math.sqrt((x * x).sum)
         return (x / norm).to_a
       else
@@ -98,13 +102,13 @@ module SmartPrompt
         raise ConfigurationError, "No LLM selected" if @current_llm.nil?
         text = ""
         @messages.each do |msg|
-          if msg[:role]=="user"
+          if msg[:role] == "user"
             text = msg[:content]
           end
         end
         @last_response = @current_llm.embeddings(text, @model_name)
-        @messages=[]
-        @messages << { role: 'system', content: @sys_msg }
+        @messages = []
+        @messages << { role: "system", content: @sys_msg }
         normalize(@last_response, length)
       end
     end

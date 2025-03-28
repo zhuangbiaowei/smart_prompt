@@ -11,13 +11,13 @@ module SmartPrompt
     end
 
     def execute(params = {})
-      conversation = Conversation.new(@engine)
+      conversation = Conversation.new(@engine, params[:tools])
       context = WorkerContext.new(conversation, params, @engine)
       context.instance_eval(&@code)
     end
 
     def execute_by_stream(params = {}, &proc)      
-      conversation = Conversation.new(@engine)
+      conversation = Conversation.new(@engine, params[:tools])
       context = WorkerContext.new(conversation, params, @engine, proc)
       context.instance_eval(&@code)
     end

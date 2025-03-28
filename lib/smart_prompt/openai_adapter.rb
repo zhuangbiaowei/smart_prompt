@@ -31,7 +31,7 @@ module SmartPrompt
       end
     end
 
-    def send_request(messages, model=nil, temperature=0.7, proc)
+    def send_request(messages, model=nil, temperature=0.7, tools=nil, proc=nil)
       SmartPrompt.logger.info "OpenAIAdapter: Sending request to OpenAI"
       if model
         model_name = model
@@ -40,24 +40,18 @@ module SmartPrompt
       end
       SmartPrompt.logger.info "OpenAIAdapter: Using model #{model_name}"
       begin
-        if proc == nil
-          response = @client.chat(
-            parameters: {
-              model: model_name,
-              messages: messages,
-              temperature: @config['temperature'] || temperature
-            }
-          )
-        else
-          @client.chat(
-            parameters: {
-              model: model_name,
-              messages: messages,
-              temperature: @config['temperature'] || temperature,
-              stream: proc
-            }
-          )
+        parameters = {
+          model: model_name,
+          messages: messages,
+          temperature: @config['temperature'] || temperature
+        }
+        if proc
+          parameters[:stream]=proc
         end
+        if tools
+          parameters[:tools]=tools
+        end
+        response = @client.chat(parameters: parameters)
       rescue OpenAI::Error => e
         SmartPrompt.logger.error "OpenAI API error: #{e.message}"
         raise LLMAPIError, "OpenAI API error: #{e.message}"
@@ -75,6 +69,7 @@ module SmartPrompt
       end
       SmartPrompt.logger.info "OpenAIAdapter: Received response from OpenAI"
       if proc == nil
+        @last_response = response
         return response.dig("choices", 0, "message", "content")
       end
     end

@@ -4,6 +4,7 @@ require 'uri'
 
 module SmartPrompt
   class LLMAdapter
+    attr_accessor :last_response
     def initialize(config)
       SmartPrompt.logger.info "Start create the SmartPrompt LLMAdapter."
       @config = config
