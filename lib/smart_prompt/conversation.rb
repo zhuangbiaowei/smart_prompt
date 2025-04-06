@@ -33,23 +33,32 @@ module SmartPrompt
       @temperature = temperature
     end
 
+    def history_messages
+      @engine.history_messages
+    end
+
+    def add_message(msg)
+      history_messages << msg
+      @messages << msg
+    end
+
     def prompt(template_name, params = {})
       if template_name.class == Symbol
         template_name = template_name.to_s
         SmartPrompt.logger.info "Use template #{template_name}"
         raise "Template #{template_name} not found" unless @templates.key?(template_name)
         content = @templates[template_name].render(params)
-        @messages << { role: "user", content: content }
+        add_message({ role: "user", content: content })
         self
       else
-        @messages << { role: "user", content: template_name }
+        add_message({ role: "user", content: template_name })
         self
       end
     end
 
     def sys_msg(message)
       @sys_msg = message
-      @messages << { role: "system", content: message }
+      add_message({ role: "system", content: message })
       self
     end
 
@@ -61,10 +70,14 @@ module SmartPrompt
       @last_response
     end
 
-    def send_msg
+    def send_msg(params = {})
       Retriable.retriable(RETRY_OPTIONS) do
         raise ConfigurationError, "No LLM selected" if @current_llm.nil?
-        @last_response = @current_llm.send_request(@messages, @model_name, @temperature, @tools, nil)
+        if params[:with_history]
+          @last_response = @current_llm.send_request(history_messages, @model_name, @temperature, @tools, nil)
+        else
+          @last_response = @current_llm.send_request(@messages, @model_name, @temperature, @tools, nil)
+        end
         if @last_response == ""
           @last_response = @current_llm.last_response
         end
@@ -76,10 +89,14 @@ module SmartPrompt
       return "Failed to call LLM after #{MAX_RETRIES} attempts: #{e.message}"
     end
 
-    def send_msg_by_stream(&proc)
+    def send_msg_by_stream(params = {}, &proc)
       Retriable.retriable(RETRY_OPTIONS) do
         raise ConfigurationError, "No LLM selected" if @current_llm.nil?
-        @current_llm.send_request(@messages, @model_name, @temperature, @tools, proc)
+        if params[:with_history]
+          @current_llm.send_request(history_messages, @model_name, @temperature, @tools, proc)
+        else
+          @current_llm.send_request(@messages, @model_name, @temperature, @tools, proc)
+        end
         @messages = []
         @messages << { role: "system", content: @sys_msg }
       end

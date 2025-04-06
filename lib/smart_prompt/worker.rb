@@ -1,6 +1,6 @@
 module SmartPrompt
   class Worker
-    attr_reader :name, :config_file
+    attr_reader :name, :config_file, :conversation
 
     def initialize(name, engine)
       SmartPrompt.logger.info "Create worker's name is #{name}"
@@ -11,14 +11,14 @@ module SmartPrompt
     end
 
     def execute(params = {})
-      conversation = Conversation.new(@engine, params[:tools])
-      context = WorkerContext.new(conversation, params, @engine)
+      @conversation = Conversation.new(@engine, params[:tools]) unless @conversation
+      context = WorkerContext.new(@conversation, params, @engine)
       context.instance_eval(&@code)
     end
 
-    def execute_by_stream(params = {}, &proc)      
-      conversation = Conversation.new(@engine, params[:tools])
-      context = WorkerContext.new(conversation, params, @engine, proc)
+    def execute_by_stream(params = {}, &proc)
+      @conversation = Conversation.new(@engine, params[:tools])
+      context = WorkerContext.new(@conversation, params, @engine, proc)
       context.instance_eval(&@code)
     end
 
@@ -34,7 +34,7 @@ module SmartPrompt
   end
 
   class WorkerContext
-    def initialize(conversation, params, engine, proc=nil)
+    def initialize(conversation, params, engine, proc = nil)
       @conversation = conversation
       @params = params
       @engine = engine
@@ -43,11 +43,11 @@ module SmartPrompt
 
     def method_missing(method, *args, &block)
       if @conversation.respond_to?(method)
-        if method==:send_msg
-          if @proc==nil
-            @conversation.send_msg
+        if method == :send_msg
+          if @proc == nil
+            @conversation.send_msg(params)
           else
-            @conversation.send_msg_by_stream(&@proc)
+            @conversation.send_msg_by_stream(params, &@proc)
           end
         else
           @conversation.send(method, *args, &block)

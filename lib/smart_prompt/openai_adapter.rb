@@ -1,18 +1,18 @@
-require 'openai'
+require "openai"
 
 module SmartPrompt
   class OpenAIAdapter < LLMAdapter
     def initialize(config)
       super
-      api_key = @config['api_key']
-      if api_key.is_a?(String) && api_key.start_with?('ENV[') && api_key.end_with?(']')
+      api_key = @config["api_key"]
+      if api_key.is_a?(String) && api_key.start_with?("ENV[") && api_key.end_with?("]")
         api_key = eval(api_key)
       end
       begin
         @client = OpenAI::Client.new(
           access_token: api_key,
-          uri_base: @config['url'],
-          request_timeout: 240
+          uri_base: @config["url"],
+          request_timeout: 240,
         )
       rescue OpenAI::ConfigurationError => e
         SmartPrompt.logger.error "Failed to initialize OpenAI client: #{e.message}"
@@ -31,25 +31,26 @@ module SmartPrompt
       end
     end
 
-    def send_request(messages, model=nil, temperature=0.7, tools=nil, proc=nil)
+    def send_request(messages, model = nil, temperature = 0.7, tools = nil, proc = nil)
       SmartPrompt.logger.info "OpenAIAdapter: Sending request to OpenAI"
+      temperature = 0.7 if temperature == nil
       if model
         model_name = model
       else
-        model_name = @config['model']
+        model_name = @config["model"]
       end
       SmartPrompt.logger.info "OpenAIAdapter: Using model #{model_name}"
       begin
         parameters = {
           model: model_name,
           messages: messages,
-          temperature: @config['temperature'] || temperature
+          temperature: @config["temperature"] || temperature,
         }
         if proc
-          parameters[:stream]=proc
+          parameters[:stream] = proc
         end
         if tools
-          parameters[:tools]=tools
+          parameters[:tools] = tools
         end
         response = @client.chat(parameters: parameters)
       rescue OpenAI::Error => e
@@ -79,15 +80,15 @@ module SmartPrompt
       if model
         model_name = model
       else
-        model_name = @config['model']        
+        model_name = @config["model"]
       end
       SmartPrompt.logger.info "OpenAIAdapter: Using model #{model_name}"
       begin
         response = @client.embeddings(
-            parameters: {
-              model: model_name,
-              input: text.to_s
-            }
+          parameters: {
+            model: model_name,
+            input: text.to_s,
+          },
         )
       rescue => e
         SmartPrompt.logger.error "Unexpected error during Ollama request: #{e.message}"
