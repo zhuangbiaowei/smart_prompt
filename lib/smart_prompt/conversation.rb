@@ -37,28 +37,30 @@ module SmartPrompt
       @engine.history_messages
     end
 
-    def add_message(msg)
-      history_messages << msg
+    def add_message(msg, with_history = false)
+      if with_history
+        history_messages << msg
+      end
       @messages << msg
     end
 
-    def prompt(template_name, params = {})
+    def prompt(template_name, params = {}, with_history = false)
       if template_name.class == Symbol
         template_name = template_name.to_s
         SmartPrompt.logger.info "Use template #{template_name}"
         raise "Template #{template_name} not found" unless @templates.key?(template_name)
         content = @templates[template_name].render(params)
-        add_message({ role: "user", content: content })
+        add_message({ role: "user", content: content }, with_history)
         self
       else
-        add_message({ role: "user", content: template_name })
+        add_message({ role: "user", content: template_name }, with_history)
         self
       end
     end
 
-    def sys_msg(message)
+    def sys_msg(message, params)
       @sys_msg = message
-      add_message({ role: "system", content: message })
+      add_message({ role: "system", content: message }, params[:with_history])
       self
     end
 

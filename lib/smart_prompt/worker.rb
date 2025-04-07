@@ -49,6 +49,10 @@ module SmartPrompt
           else
             @conversation.send_msg_by_stream(params, &@proc)
           end
+        elsif method == :sys_msg
+          @conversation.sys_msg(*args, params)
+        elsif method == :prompt
+          @conversation.prompt(*args, params[:with_history])
         else
           @conversation.send(method, *args, &block)
         end

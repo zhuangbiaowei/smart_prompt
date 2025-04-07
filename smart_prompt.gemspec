@@ -35,7 +35,6 @@ Gem::Specification.new do |spec|
   # spec.add_dependency "example-gem", "~> 1.0"
   spec.add_dependency "yaml", "~> 0.3.0"
   spec.add_dependency "ruby-openai", "~> 7.1.0"
-  spec.add_dependency "ollama-ruby", "~> 0.13.0"
   spec.add_dependency "json", "~> 2.7.1"
   spec.add_dependency "safe_ruby", "~> 1.0.4"
   spec.add_dependency 'retriable', '~> 3.1.2'
