@@ -37,7 +37,8 @@ Gem::Specification.new do |spec|
   spec.add_dependency "ruby-openai", "~> 7.1.0"
   spec.add_dependency "json", "~> 2.7.1"
   spec.add_dependency "safe_ruby", "~> 1.0.4"
-  spec.add_dependency 'retriable', '~> 3.1.2'
+  spec.add_dependency "retriable", "~> 3.1.2"
+  spec.add_dependency "numo-narray", "~> 0.9.2.1"
   # For more information and examples about making a new gem, check out our
   # guide at: https://bundler.io/guides/creating_gem.html
 end
