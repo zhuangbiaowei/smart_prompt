@@ -52,7 +52,7 @@ module SmartPrompt
         elsif method == :sys_msg
           @conversation.sys_msg(*args, params)
         elsif method == :prompt
-          @conversation.prompt(*args, params[:with_history])
+          @conversation.prompt(*args, with_history: params[:with_history])
         else
           @conversation.send(method, *args, &block)
         end

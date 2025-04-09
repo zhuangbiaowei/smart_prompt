@@ -44,7 +44,7 @@ module SmartPrompt
       @messages << msg
     end
 
-    def prompt(template_name, params = {}, with_history = false)
+    def prompt(template_name, params = {}, with_history: false)
       if template_name.class == Symbol
         template_name = template_name.to_s
         SmartPrompt.logger.info "Use template #{template_name}"
