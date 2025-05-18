@@ -33,12 +33,12 @@ Gem::Specification.new do |spec|
 
   # Uncomment to register a new dependency of your gem
   # spec.add_dependency "example-gem", "~> 1.0"
-  spec.add_dependency "yaml", "~> 0.3.0"
-  spec.add_dependency "ruby-openai", "~> 7.1.0"
-  spec.add_dependency "json", "~> 2.7.1"
-  spec.add_dependency "safe_ruby", "~> 1.0.4"
-  spec.add_dependency "retriable", "~> 3.1.2"
-  spec.add_dependency "numo-narray", "~> 0.9.2.1"
+  spec.add_dependency "yaml"
+  spec.add_dependency "ruby-openai"
+  spec.add_dependency "json"
+  spec.add_dependency "safe_ruby"
+  spec.add_dependency "retriable"
+  spec.add_dependency "numo-narray"
   # For more information and examples about making a new gem, check out our
   # guide at: https://bundler.io/guides/creating_gem.html
 end

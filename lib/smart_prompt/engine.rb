@@ -1,6 +1,7 @@
 module SmartPrompt
   class Engine
     attr_reader :config_file, :config, :adapters, :current_adapter, :llms, :templates
+    attr_reader :stream_response
 
     def initialize(config_file)
       @config_file = config_file
@@ -11,6 +12,41 @@ module SmartPrompt
       @history_messages = []
       load_config(config_file)
       SmartPrompt.logger.info "Started create the SmartPrompt engine."
+      @stream_proc =  Proc.new do |chunk, _bytesize|
+        if @stream_response.empty?
+          @stream_response["id"] = chunk["id"]
+          @stream_response["object"] = chunk["object"]
+          @stream_response["created"] = chunk["created"]
+          @stream_response["model"] = chunk["model"]
+          @stream_response["choices"] = [{
+            "index" => 0,
+            "message" => {
+              "role" => "assistant",
+              "content" => "",
+              "reasoning_content" => "",
+              "tool_calls" => [],
+            },
+          }]
+          @stream_response["usage"] = chunk["usage"]
+          @stream_response["system_fingerprint"] = chunk["system_fingerprint"]
+        end
+        if chunk.dig("choices", 0, "delta", "reasoning_content")
+          @stream_response["choices"][0]["message"]["reasoning_content"] += chunk.dig("choices", 0, "delta", "reasoning_content")        
+        end
+        if chunk.dig("choices", 0, "delta", "content")
+          @stream_response["choices"][0]["message"]["content"] += chunk.dig("choices", 0, "delta", "content")
+        end
+        if chunk_tool_calls = chunk.dig("choices", 0, "delta", "tool_calls")
+          chunk_tool_calls.each do |tool_call|
+            if @stream_response["choices"][0]["message"]["tool_calls"].size > tool_call["index"]
+              @stream_response["choices"][0]["message"]["tool_calls"][tool_call["index"]]["function"]["arguments"] += tool_call["function"]["arguments"]
+            else
+              @stream_response["choices"][0]["message"]["tool_calls"] << tool_call
+            end
+          end
+        end
+        @origin_proc.call(chunk, _bytesize)
+      end
     end
 
     def create_dir(filename)
@@ -82,13 +118,16 @@ module SmartPrompt
             "role": "assistant",
             "content": result,
           }
+        elsif result.class == Array
+          recive_message = nil
         else
           recive_message = {
             "role": result.dig("choices", 0, "message", "role"),
             "content": result.dig("choices", 0, "message", "content").to_s + result.dig("choices", 0, "message", "tool_calls").to_s,
           }
         end
-        worker.conversation.add_message(recive_message)
+        worker.conversation.add_message(recive_message) if recive_message
+        SmartPrompt.logger.info "Worker result is: #{result}"
         result
       rescue => e
         SmartPrompt.logger.error "Error executing worker #{worker_name}: #{e.message}"
@@ -101,8 +140,11 @@ module SmartPrompt
       SmartPrompt.logger.info "Calling worker: #{worker_name} with params: #{params}"
       worker = get_worker(worker_name)
       begin
-        worker.execute_by_stream(params, &proc)
+        @origin_proc = proc
+        @stream_response = {}
+        worker.execute_by_stream(params, &@stream_proc)
         SmartPrompt.logger.info "Worker #{worker_name} executed(stream) successfully"
+        SmartPrompt.logger.info "Worker #{worker_name} stream response is: #{@stream_response}"
       rescue => e
         SmartPrompt.logger.error "Error executing worker #{worker_name}: #{e.message}"
         SmartPrompt.logger.debug e.backtrace.join("\n")

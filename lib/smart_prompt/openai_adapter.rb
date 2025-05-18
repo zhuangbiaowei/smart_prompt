@@ -52,6 +52,7 @@ module SmartPrompt
         if tools
           parameters[:tools] = tools
         end
+        SmartPrompt.logger.info "Send parameters is: #{parameters}"
         response = @client.chat(parameters: parameters)
       rescue OpenAI::Error => e
         SmartPrompt.logger.error "OpenAI API error: #{e.message}"
