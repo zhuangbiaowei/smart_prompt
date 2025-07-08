@@ -112,12 +112,12 @@ SmartPrompt.define_worker :chat_assistant do
   use "SiliconFlow"
   model "deepseek-ai/DeepSeek-V3"
   # Set system message
-  sys_msg("You are a helpful AI assistant.", params)
+  sys_msg "You are a helpful AI assistant."
   # Use template with parameters  
-  prompt(:chat, {
+  prompt :chat, {
     question: params[:question],
     context: params[:context]
-  })
+  }
   # Send message and return response
   send_msg
 end
@@ -149,8 +149,8 @@ puts result
 SmartPrompt.define_worker :streaming_chat do
   use "deepseek"
   model "deepseek-chat"
-  sys_msg("You are a helpful assistant.")
-  prompt(params[:message])
+  sys_msg "You are a helpful assistant."
+  prompt params[:message] 
   send_msg
 end
 
@@ -189,8 +189,8 @@ SmartPrompt.define_worker :assistant_with_tools do
     }
   ]
   
-  sys_msg("You can help with weather queries using available tools.", params)
-  prompt(params[:message])
+  sys_msg "You can help with weather queries using available tools."
+  prompt params[:message]
   params.merge(tools: tools)
   send_msg
 end
@@ -202,8 +202,8 @@ end
 SmartPrompt.define_worker :conversational_chat do
   use "deepseek"
   model "deepseek-chat"
-  sys_msg("You are a helpful assistant that remembers conversation context.")
-  prompt(params[:message], with_history: true)
+  sys_msg "You are a helpful assistant that remembers conversation context."
+  prompt :template_name, {message: params[:message]}, with_history: true
   send_msg
 end
 ```
@@ -214,7 +214,7 @@ end
 SmartPrompt.define_worker :text_embedder do
   use "SiliconFlow"
   model "BAAI/bge-m3"
-  prompt params[:text]  
+  prompt params[:text]
   embeddings(params[:dimensions] || 1024)
 end
 

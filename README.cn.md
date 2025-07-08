@@ -112,12 +112,12 @@ SmartPrompt.define_worker :chat_assistant do
   use "SiliconFlow"
   model "deepseek-ai/DeepSeek-V3"
   # 设置系统消息
-  sys_msg("你是一个有用的 AI 助手。", params)
+  sys_msg "你是一个有用的 AI 助手。"
   # 使用模板和参数  
-  prompt(:chat, {
+  prompt :chat, {
     question: params[:question],
     context: params[:context]
-  })
+  }
   # 发送消息并返回响应
   send_msg
 end
@@ -149,8 +149,8 @@ puts result
 SmartPrompt.define_worker :streaming_chat do
   use "deepseek"
   model "deepseek-chat"
-  sys_msg("你是一个有用的助手。")
-  prompt(params[:message])
+  sys_msg "你是一个有用的助手。"
+  prompt params[:message]
   send_msg
 end
 
@@ -189,8 +189,8 @@ SmartPrompt.define_worker :assistant_with_tools do
     }
   ]
   
-  sys_msg("你可以使用可用的工具帮助处理天气查询。", params)
-  prompt(params[:message])
+  sys_msg "你可以使用可用的工具帮助处理天气查询。"
+  prompt params[:message]
   params.merge(tools: tools)
   send_msg
 end
@@ -202,8 +202,8 @@ end
 SmartPrompt.define_worker :conversational_chat do
   use "deepseek"
   model "deepseek-chat"
-  sys_msg("你是一个记住对话上下文的有用助手。")
-  prompt(params[:message], with_history: true)
+  sys_msg "你是一个记住对话上下文的有用助手。"
+  prompt :template_name, {message: params[:message]}, with_history: true
   send_msg
 end
 ```
