@@ -12,7 +12,7 @@ module SmartPrompt
       @history_messages = []
       load_config(config_file)
       SmartPrompt.logger.info "Started create the SmartPrompt engine."
-      @stream_proc =  Proc.new do |chunk, _bytesize|
+      @stream_proc = Proc.new do |chunk, _bytesize|
         if @stream_response.empty?
           @stream_response["id"] = chunk["id"]
           @stream_response["object"] = chunk["object"]
@@ -31,7 +31,7 @@ module SmartPrompt
           @stream_response["system_fingerprint"] = chunk["system_fingerprint"]
         end
         if chunk.dig("choices", 0, "delta", "reasoning_content")
-          @stream_response["choices"][0]["message"]["reasoning_content"] += chunk.dig("choices", 0, "delta", "reasoning_content")        
+          @stream_response["choices"][0]["message"]["reasoning_content"] += chunk.dig("choices", 0, "delta", "reasoning_content")
         end
         if chunk.dig("choices", 0, "delta", "content")
           @stream_response["choices"][0]["message"]["content"] += chunk.dig("choices", 0, "delta", "content")
@@ -64,6 +64,10 @@ module SmartPrompt
           SmartPrompt.logger = Logger.new(@config["logger_file"])
         end
         SmartPrompt.logger.info "Loading configuration from file: #{config_file}"
+        if @config["better_prompt_db"]
+          require "better_prompt"
+          BetterPrompt.setup(db_path: @config["better_prompt_db"])
+        end
         @config["adapters"].each do |adapter_name, adapter_class|
           adapter_class = SmartPrompt.const_get(adapter_class)
           @adapters[adapter_name] = adapter_class
@@ -111,6 +115,11 @@ module SmartPrompt
       SmartPrompt.logger.info "Calling worker: #{worker_name} with params: #{params}"
       worker = get_worker(worker_name)
       begin
+        unless params[:with_history]
+          if worker.conversation
+            worker.conversation.messages.clear
+          end
+        end
         result = worker.execute(params)
         SmartPrompt.logger.info "Worker #{worker_name} executed successfully"
         if result.class == String
