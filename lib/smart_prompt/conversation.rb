@@ -14,6 +14,7 @@ module SmartPrompt
       @engine = engine
       @adapters = engine.adapters
       @llms = engine.llms
+      @models = engine.models
       @current_llm_name = nil
       @templates = engine.templates
       @temperature = 0.7
@@ -23,17 +24,30 @@ module SmartPrompt
     end
 
     def use(llm_name)
-      raise "Adapter #{adapter_name} not configured" unless @llms.key?(llm_name)
+      llm_name = llm_name.to_s
+      raise ConfigurationError, "LLM #{llm_name} not configured" unless @llms.key?(llm_name)
       @current_llm = @llms[llm_name]
       @current_llm_name = llm_name
       self
     end
 
+    def use_model(model_name)
+      model_name = model_name.to_s
+      model_config = @models[model_name] || @models[model_name.to_sym]
+      raise ConfigurationError, "Model #{model_name} not configured" unless model_config
+
+      llm_name = model_config["use"] || model_config[:use]
+      configured_model_name = model_config["model"] || model_config[:model]
+      raise ConfigurationError, "Model #{model_name} must define use" if llm_name.nil? || llm_name.empty?
+      raise ConfigurationError, "Model #{model_name} must define model" if configured_model_name.nil? || configured_model_name.empty?
+
+      use(llm_name)
+      model(configured_model_name)
+      self
+    end
+
     def model(model_name)
       @model_name = model_name
-      if @engine.config["better_prompt_db"]
-        BetterPrompt.add_model(@current_llm_name, @model_name)
-      end
     end
 
     def temperature(temperature)
@@ -58,15 +72,9 @@ module SmartPrompt
         raise "Template #{template_name} not found" unless @templates.key?(template_name)
         content = @templates[template_name].render(params)
         add_message({ role: "user", content: content }, with_history)
-        if @engine.config["better_prompt_db"]
-          BetterPrompt.add_prompt(template_name, "user", content)
-        end
         self
       else
         add_message({ role: "user", content: template_name }, with_history)
-        if @engine.config["better_prompt_db"]
-          BetterPrompt.add_prompt("NULL", "user", template_name)
-        end
         self
       end
     end
@@ -74,9 +82,6 @@ module SmartPrompt
     def sys_msg(message, params)
       @sys_msg = message
       add_message({ role: "system", content: message }, params[:with_history])
-      if @engine.config["better_prompt_db"]
-        BetterPrompt.add_prompt("NULL", "system", message)
-      end
       self
     end
 
@@ -91,13 +96,6 @@ module SmartPrompt
     def send_msg(params = {})
       Retriable.retriable(RETRY_OPTIONS) do
         raise ConfigurationError, "No LLM selected" if @current_llm.nil?
-        if @engine.config["better_prompt_db"]
-          if params[:with_history]
-            @last_call_id = BetterPrompt.add_model_call(@current_llm_name, @model_name, history_messages, false, @temperature, 0, 0.0, 0, @tools)
-          else
-            @last_call_id = BetterPrompt.add_model_call(@current_llm_name, @model_name, @messages, false, @temperature, 0, 0.0, 0, @tools)
-          end
-        end
         if params[:with_history]
           @last_response = @current_llm.send_request(history_messages, @model_name, @temperature, @tools, nil)
         else
@@ -105,9 +103,6 @@ module SmartPrompt
         end
         if @last_response == ""
           @last_response = @current_llm.last_response
-        end
-        if @engine.config["better_prompt_db"]
-          BetterPrompt.add_response(@last_call_id, @last_response, false)
         end
         @messages = []
         @messages << { role: "system", content: @sys_msg }
@@ -120,20 +115,10 @@ module SmartPrompt
     def send_msg_by_stream(params = {}, &proc)
       Retriable.retriable(RETRY_OPTIONS) do
         raise ConfigurationError, "No LLM selected" if @current_llm.nil?
-        if @engine.config["better_prompt_db"]
-          if params[:with_history]
-            @last_call_id = BetterPrompt.add_model_call(@current_llm_name, @model_name, history_messages, true, @temperature, 0, 0.0, 0, @tools)
-          else
-            @last_call_id = BetterPrompt.add_model_call(@current_llm_name, @model_name, @messages, true, @temperature, 0, 0.0, 0, @tools)
-          end
-        end
         if params[:with_history]
           @current_llm.send_request(history_messages, @model_name, @temperature, @tools, proc)
         else
           @current_llm.send_request(@messages, @model_name, @temperature, @tools, proc)
-        end
-        if @engine.config["better_prompt_db"]
-          BetterPrompt.add_response(@last_call_id, @engine.stream_response, true)
         end
         @messages = []
         @messages << { role: "system", content: @sys_msg }

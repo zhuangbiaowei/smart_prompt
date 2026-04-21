@@ -68,7 +68,7 @@ llms:
     url: https://api.siliconflow.cn/v1/
     api_key: ENV["APIKey"]
     default_model: Qwen/Qwen2.5-7B-Instruct
-  llamacpp:
+  local:
     adapter: openai
     url: http://localhost:8080/    
   ollama:
@@ -80,6 +80,15 @@ llms:
     url: https://api.deepseek.com
     api_key: ENV["DSKEY"]
     default_model: deepseek-reasoner
+
+# 模型别名配置
+models:
+  local/qwen3.5:
+    use: local
+    model: qwen3.5
+  deepseekv3.2:
+    use: SiliconFlow
+    model: Pro/deepseek-ai/DeepSeek-V3.2
 
 # 默认设置
 default_llm: SiliconFlow
@@ -108,9 +117,8 @@ logger_file: "./logs/smart_prompt.log"
 **workers/chat_worker.rb**:
 ```ruby
 SmartPrompt.define_worker :chat_assistant do
-  # 使用特定的 LLM
-  use "SiliconFlow"
-  model "deepseek-ai/DeepSeek-V3"
+  # 使用配置好的模型别名
+  use_model "deepseekv3.2"
   # 设置系统消息
   sys_msg("你是一个有用的 AI 助手。", params)
   # 使用模板和参数  
@@ -273,6 +281,17 @@ llms:
     temperature: 0.7
     # 其他提供商特定选项
 ```
+
+### 模型别名配置
+
+```yaml
+models:
+  model_alias:
+    use: "llm_name"
+    model: "model_identifier"
+```
+
+在 worker 中，`use_model "model_alias"` 等价于调用 `use "llm_name"` 和 `model "model_identifier"`。
 
 ### 路径配置
 

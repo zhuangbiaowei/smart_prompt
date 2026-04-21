@@ -68,7 +68,7 @@ llms:
     url: https://api.siliconflow.cn/v1/
     api_key: ENV["APIKey"]
     default_model: Qwen/Qwen2.5-7B-Instruct
-  llamacpp:
+  local:
     adapter: openai
     url: http://localhost:8080/    
   ollama:
@@ -80,6 +80,15 @@ llms:
     url: https://api.deepseek.com
     api_key: ENV["DSKEY"]
     default_model: deepseek-reasoner
+
+# Model aliases
+models:
+  local/qwen3.5:
+    use: local
+    model: qwen3.5
+  deepseekv3.2:
+    use: SiliconFlow
+    model: Pro/deepseek-ai/DeepSeek-V3.2
 
 # Default settings
 default_llm: SiliconFlow
@@ -108,9 +117,8 @@ Create worker files in your `workers/` directory:
 **workers/chat_worker.rb**:
 ```ruby
 SmartPrompt.define_worker :chat_assistant do
-  # Use a specific LLM
-  use "SiliconFlow"
-  model "deepseek-ai/DeepSeek-V3"
+  # Use a configured model alias
+  use_model "deepseekv3.2"
   # Set system message
   sys_msg("You are a helpful AI assistant.", params)
   # Use template with parameters  
@@ -273,6 +281,17 @@ llms:
     temperature: 0.7
     # Additional provider-specific options
 ```
+
+### Model Alias Configuration
+
+```yaml
+models:
+  model_alias:
+    use: "llm_name"
+    model: "model_identifier"
+```
+
+In a worker, `use_model "model_alias"` is equivalent to calling `use "llm_name"` and `model "model_identifier"`.
 
 ### Path Configuration
 

@@ -1,12 +1,13 @@
 module SmartPrompt
   class Engine
-    attr_reader :config_file, :config, :adapters, :current_adapter, :llms, :templates
+    attr_reader :config_file, :config, :adapters, :current_adapter, :llms, :models, :templates
     attr_reader :stream_response
 
     def initialize(config_file)
       @config_file = config_file
       @adapters = {}
       @llms = {}
+      @models = {}
       @templates = {}
       @current_workers = {}
       @history_messages = []
@@ -64,10 +65,7 @@ module SmartPrompt
           SmartPrompt.logger = Logger.new(@config["logger_file"])
         end
         SmartPrompt.logger.info "Loading configuration from file: #{config_file}"
-        if @config["better_prompt_db"]
-          require "better_prompt"
-          BetterPrompt.setup(db_path: @config["better_prompt_db"])
-        end
+        @models = @config["models"] || {}
         @config["adapters"].each do |adapter_name, adapter_class|
           adapter_class = SmartPrompt.const_get(adapter_class)
           @adapters[adapter_name] = adapter_class
