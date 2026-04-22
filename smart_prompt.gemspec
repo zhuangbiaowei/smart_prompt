@@ -32,7 +32,7 @@ Gem::Specification.new do |spec|
   # spec.add_dependency "example-gem", "~> 1.0"
   spec.add_dependency "yaml", "~> 0.4.0"
   spec.add_dependency "ruby-openai", "~> 8.3.0"
-  spec.add_dependency "json", "~> 2.12.0"
+  spec.add_dependency "json", "~> 2.19.4"
   spec.add_dependency "safe_ruby", "~> 1.0.5"
   spec.add_dependency "retriable", "~> 3.1.2"
   spec.add_dependency "numo-narray", "~> 0.9.2.1"
