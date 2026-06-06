@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    smart_prompt (0.3.7)
+    smart_prompt (0.4.3)
       json (~> 2.19.4)
       numo-narray (~> 0.9.2.1)
       retriable (~> 3.1.2)
