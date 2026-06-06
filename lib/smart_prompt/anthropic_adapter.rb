@@ -239,16 +239,60 @@ module SmartPrompt
     end
 
     def extract_content(response)
-      response.fetch("content", []).map do |block|
+      text_parts = []
+      tool_calls = []
+
+      response.fetch("content", []).each do |block|
         case block["type"]
         when "text"
-          block["text"].to_s
+          text_parts << block["text"].to_s
         when "tool_use"
-          block.to_s
+          tool_calls << openai_tool_call(block)
         else
-          block.to_s
+          text_parts << block.to_s
         end
-      end.join
+      end
+
+      content = text_parts.join
+      return content if tool_calls.empty?
+
+      openai_response(response, content, tool_calls)
+    end
+
+    def openai_response(response, content, tool_calls)
+      {
+        "id" => response["id"],
+        "object" => "chat.completion",
+        "created" => Time.now.to_i,
+        "model" => response["model"],
+        "choices" => [{
+          "index" => 0,
+          "message" => {
+            "role" => "assistant",
+            "content" => content,
+            "tool_calls" => tool_calls,
+          },
+          "finish_reason" => openai_finish_reason(response["stop_reason"]),
+        }],
+        "usage" => response["usage"],
+      }
+    end
+
+    def openai_tool_call(block)
+      {
+        "id" => block["id"],
+        "type" => "function",
+        "function" => {
+          "name" => block["name"],
+          "arguments" => JSON.generate(block["input"] || {}),
+        },
+      }
+    end
+
+    def openai_finish_reason(stop_reason)
+      return "tool_calls" if stop_reason == "tool_use"
+
+      stop_reason
     end
   end
 end
