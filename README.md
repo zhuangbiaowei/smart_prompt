@@ -75,6 +75,14 @@ llms:
     adapter: openai
     url: http://localhost:11434/
     default_model: deepseek-r1
+  gemma4_local:
+    adapter: openai
+    url: http://localhost:8000/v1
+    api_key: dummy
+    default_model: gemma-4-12B-it
+    temperature: 1.0
+    top_p: 0.95
+    top_k: 64
   deepseek:
     adapter: openai
     url: https://api.deepseek.com
@@ -89,6 +97,10 @@ models:
   deepseekv3.2:
     use: SiliconFlow
     model: Pro/deepseek-ai/DeepSeek-V3.2
+  gemma4/12b:
+    use: gemma4_local
+    model: gemma-4-12B-it
+    max_tokens: 1024
 
 # Default settings
 default_llm: SiliconFlow
@@ -167,6 +179,26 @@ engine.call_worker_by_stream(:streaming_chat, {
   message: "Tell me a story"
 }) do |chunk, bytesize|
   print chunk.dig("choices", 0, "delta", "content")
+end
+```
+
+### Gemma 4 12B Multimodal
+
+Gemma 4 12B can be connected through OpenAI-compatible local servers such as LiteRT-LM, LM Studio, Ollama, or llama.cpp. SmartPrompt places images before text and audio after text to match Gemma 4 multimodal best practices.
+
+```ruby
+SmartPrompt.define_worker :gemma_multimodal_assistant do
+  use_model "gemma4/12b"
+  thinking params.fetch(:thinking, true)
+  sys_msg("You are a precise local multimodal assistant.", params)
+
+  image(params[:image], token_budget: params[:token_budget] || 280) if params[:image]
+  video(params[:video], fps: 1, max_seconds: 60) if params[:video]
+  audio(params[:audio]) if params[:audio]
+  prompt(params[:message])
+
+  request_options(response_format: { type: "json_object" }) if params[:json]
+  send_msg
 end
 ```
 

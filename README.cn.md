@@ -75,6 +75,14 @@ llms:
     adapter: openai
     url: http://localhost:11434/
     default_model: deepseek-r1
+  gemma4_local:
+    adapter: openai
+    url: http://localhost:8000/v1
+    api_key: dummy
+    default_model: gemma-4-12B-it
+    temperature: 1.0
+    top_p: 0.95
+    top_k: 64
   deepseek:
     adapter: openai
     url: https://api.deepseek.com
@@ -89,6 +97,10 @@ models:
   deepseekv3.2:
     use: SiliconFlow
     model: Pro/deepseek-ai/DeepSeek-V3.2
+  gemma4/12b:
+    use: gemma4_local
+    model: gemma-4-12B-it
+    max_tokens: 1024
 
 # 默认设置
 default_llm: SiliconFlow
@@ -167,6 +179,26 @@ engine.call_worker_by_stream(:streaming_chat, {
   message: "给我讲个故事"
 }) do |chunk, bytesize|
   print chunk.dig("choices", 0, "delta", "content")
+end
+```
+
+### Gemma 4 12B 多模态
+
+Gemma 4 12B 可以通过 LiteRT-LM、LM Studio、Ollama、llama.cpp 等 OpenAI 兼容本地服务接入。SmartPrompt 会把图片放在文本前、音频放在文本后，以匹配 Gemma 4 的多模态最佳实践。
+
+```ruby
+SmartPrompt.define_worker :gemma_multimodal_assistant do
+  use_model "gemma4/12b"
+  thinking params.fetch(:thinking, true)
+  sys_msg("你是一个严谨的本地多模态助手。", params)
+
+  image(params[:image], token_budget: params[:token_budget] || 280) if params[:image]
+  video(params[:video], fps: 1, max_seconds: 60) if params[:video]
+  audio(params[:audio]) if params[:audio]
+  prompt(params[:message])
+
+  request_options(response_format: { type: "json_object" }) if params[:json]
+  send_msg
 end
 ```
 

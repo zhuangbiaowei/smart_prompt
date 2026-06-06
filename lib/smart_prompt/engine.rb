@@ -123,15 +123,12 @@ module SmartPrompt
         if result.class == String
           recive_message = {
             "role": "assistant",
-            "content": result,
+            "content": sanitize_history_content(result),
           }
         elsif result.class == Array
           recive_message = nil
         else
-          recive_message = {
-            "role": result.dig("choices", 0, "message", "role"),
-            "content": result.dig("choices", 0, "message", "content").to_s + result.dig("choices", 0, "message", "tool_calls").to_s,
-          }
+          recive_message = assistant_history_message(result)
         end
         worker.conversation.add_message(recive_message) if recive_message
         SmartPrompt.logger.info "Worker result is: #{result}"
@@ -174,6 +171,23 @@ module SmartPrompt
 
     def clear_history_messages
       @history_messages = []
+    end
+
+    private
+
+    def assistant_history_message(result)
+      message = result.dig("choices", 0, "message") || {}
+      history_message = {
+        "role": message["role"] || "assistant",
+        "content": sanitize_history_content(message["content"].to_s),
+      }
+      tool_calls = message["tool_calls"]
+      history_message["tool_calls"] = tool_calls if tool_calls && !tool_calls.empty?
+      history_message
+    end
+
+    def sanitize_history_content(content)
+      content.to_s.gsub(/<\|channel\>thought\n.*?<channel\|>/m, "")
     end
   end
 end

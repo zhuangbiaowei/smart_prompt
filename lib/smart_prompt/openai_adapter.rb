@@ -31,7 +31,19 @@ module SmartPrompt
       end
     end
 
-    def send_request(messages, model = nil, temperature = 0.7, tools = nil, proc = nil)
+    REQUEST_PARAMETER_KEYS = %w[
+      max_tokens
+      max_completion_tokens
+      top_p
+      top_k
+      response_format
+      tool_choice
+      parallel_tool_calls
+      seed
+      stop
+    ].freeze
+
+    def send_request(messages, model = nil, temperature = 0.7, tools = nil, proc = nil, request_options = {})
       SmartPrompt.logger.info "OpenAIAdapter: Sending request to OpenAI"
       temperature = 0.7 if temperature == nil
       if model
@@ -46,6 +58,8 @@ module SmartPrompt
           messages: messages,
           temperature: @config["temperature"] || temperature,
         }
+        parameters.merge!(configured_request_parameters)
+        parameters.merge!(request_options || {})
         if proc
           parameters[:stream] = proc
         end
@@ -98,6 +112,16 @@ module SmartPrompt
         SmartPrompt.logger.info "Successful send a message"
       end
       return response.dig("data", 0, "embedding")
+    end
+
+    private
+
+    def configured_request_parameters
+      REQUEST_PARAMETER_KEYS.each_with_object({}) do |key, parameters|
+        next unless @config.key?(key)
+
+        parameters[key.to_sym] = @config[key]
+      end
     end
   end
 end
