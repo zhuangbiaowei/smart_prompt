@@ -1,6 +1,7 @@
 require "yaml"
 require "retriable"
 require "numo/narray"
+require "base64"
 
 module SmartPrompt
   class Conversation
@@ -234,8 +235,8 @@ module SmartPrompt
 
     def multimodal_content(text)
       parts = @pending_content_parts
-      images_and_videos = parts.select { |part| ["image", "video"].include?(part[:type] || part["type"]) }
-      audio_parts = parts.select { |part| (part[:type] || part["type"]) == "audio" }
+      images_and_videos = parts.select { |part| ["image_url", "image", "video_url", "video"].include?(part[:type] || part["type"]) }
+      audio_parts = parts.select { |part| ["input_audio", "audio"].include?(part[:type] || part["type"]) }
       other_parts = parts - images_and_videos - audio_parts
       normalize_content_parts(images_and_videos + other_parts + [{ type: "text", text: text.to_s }] + audio_parts)
     end
@@ -249,19 +250,60 @@ module SmartPrompt
     end
 
     def media_part(type, source, **metadata)
-      part = { type: type }
       case type
       when "image"
-        part[:url] = source
+        mime_type = detect_image_mime(source)
+        data = File.binread(source)
+        base64_data = Base64.strict_encode64(data)
+        url = "data:#{mime_type};base64,#{base64_data}"
+        part = { type: "image_url", image_url: { url: url } }
       when "audio"
-        part[:audio] = source
+        format = detect_audio_format(source)
+        data = File.binread(source)
+        base64_data = Base64.strict_encode64(data)
+        part = { type: "input_audio", input_audio: { data: base64_data, format: format } }
       when "video"
-        part[:video] = source
+        mime_type = detect_video_mime(source)
+        data = File.binread(source)
+        base64_data = Base64.strict_encode64(data)
+        url = "data:#{mime_type};base64,#{base64_data}"
+        part = { type: "video_url", video_url: { url: url } }
+      else
+        part = { type: type }
       end
       metadata.each do |key, value|
         part[key] = value unless value.nil?
       end
       part
+    end
+
+    def detect_image_mime(path)
+      ext = File.extname(path).downcase
+      case ext
+      when ".png"  then "image/png"
+      when ".jpg", ".jpeg" then "image/jpeg"
+      when ".gif"  then "image/gif"
+      when ".webp" then "image/webp"
+      when ".bmp"  then "image/bmp"
+      when ".svg"  then "image/svg+xml"
+      else "application/octet-stream"
+      end
+    end
+
+    def detect_audio_format(path)
+      ext = File.extname(path).downcase.delete_prefix(".")
+      %w[wav mp3 ogg flac aac m4a].include?(ext) ? ext : "wav"
+    end
+
+    def detect_video_mime(path)
+      ext = File.extname(path).downcase
+      case ext
+      when ".mp4"  then "video/mp4"
+      when ".webm" then "video/webm"
+      when ".mov"  then "video/quicktime"
+      when ".avi"  then "video/x-msvideo"
+      else "application/octet-stream"
+      end
     end
 
     def thinking_system_message(message)

@@ -36,6 +36,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency "safe_ruby", "~> 1.0.5"
   spec.add_dependency "retriable", "~> 3.1.2"
   spec.add_dependency "numo-narray", "~> 0.9.2.1"
+  spec.add_dependency "base64", "~> 0.3.0"
   # For more information and examples about making a new gem, check out our
   # guide at: https://bundler.io/guides/creating_gem.html
 end
