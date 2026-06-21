@@ -1,7 +1,7 @@
 module SmartPrompt
   class Engine
     attr_reader :config_file, :config, :adapters, :current_adapter, :llms, :models, :templates
-    attr_reader :stream_response
+    attr_reader :stream_response, :history_manager
 
     def initialize(config_file)
       @config_file = config_file
@@ -11,6 +11,7 @@ module SmartPrompt
       @templates = {}
       @current_workers = {}
       @history_messages = []
+      @history_manager = nil
       load_config(config_file)
       SmartPrompt.logger.info "Started create the SmartPrompt engine."
       @stream_proc = Proc.new do |chunk, _bytesize|
@@ -79,6 +80,14 @@ module SmartPrompt
           template_name = file.gsub(@config["template_path"] + "/", "").gsub("\.erb", "")
           @templates[template_name] = PromptTemplate.new(file)
         end
+
+        # Initialize HistoryManager if configured
+        if @config["history"]
+          history_config = symbolize_keys(@config["history"])
+          @history_manager = HistoryManager.new(history_config)
+          SmartPrompt.logger.info "HistoryManager initialized with configuration"
+        end
+
         load_workers
       rescue Psych::SyntaxError => ex
         SmartPrompt.logger.error "YAML syntax error in config file: #{ex.message}"
@@ -146,7 +155,8 @@ module SmartPrompt
       begin
         @origin_proc = proc
         @stream_response = {}
-        worker.execute_by_stream(params, &@stream_proc)
+        ret = worker.execute_by_stream(params, &@stream_proc)
+        @stream_response = ret if @stream_response.empty?
         SmartPrompt.logger.info "Worker #{worker_name} executed(stream) successfully"
         SmartPrompt.logger.info "Worker #{worker_name} stream response is: #{@stream_response}"
       rescue => e
@@ -166,10 +176,16 @@ module SmartPrompt
     end
 
     def history_messages
+      if @history_manager
+        SmartPrompt.logger.warn "[DEPRECATED] Engine#history_messages is deprecated. Use history_manager.get_context(session_id) instead."
+      end
       @history_messages
     end
 
     def clear_history_messages
+      if @history_manager
+        SmartPrompt.logger.warn "[DEPRECATED] Engine#clear_history_messages is deprecated. Use history_manager.clear_session(session_id) instead."
+      end
       @history_messages = []
     end
 
@@ -188,6 +204,17 @@ module SmartPrompt
 
     def sanitize_history_content(content)
       content.to_s.gsub(/<\|channel\>thought\n.*?<channel\|>/m, "")
+    end
+
+    # Recursively convert hash keys from strings to symbols
+    def symbolize_keys(hash)
+      return hash unless hash.is_a?(Hash)
+
+      hash.each_with_object({}) do |(key, value), result|
+        new_key = key.is_a?(String) ? key.to_sym : key
+        new_value = value.is_a?(Hash) ? symbolize_keys(value) : value
+        result[new_key] = new_value
+      end
     end
   end
 end

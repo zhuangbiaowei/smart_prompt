@@ -1,0 +1,73 @@
+# 智谱 AI (BigModel / GLM) Configuration for SmartPrompt
+#
+# Get an API key from https://open.bigmodel.cn/ and export it as ZHIPUAI_API_KEY.
+# A single ZhipuAIAdapter covers all REST model categories — just point a different
+# llm entry at each model. Defaults use the free-tier models so it runs out-of-box.
+#
+# Base URL: https://open.bigmodel.cn/api/paas/v4  (coding models: .../api/coding/paas/v4)
+# Auth:     Authorization: Bearer <API_KEY>
+
+adapters:
+  zhipu: "ZhipuAIAdapter"
+
+llms:
+  # 1. 文本对话 (free-tier glm-4-flash; paid: glm-4-plus / glm-4-long / glm-5.2)
+  glm:
+    adapter: "zhipu"
+    url: "https://open.bigmodel.cn/api/paas/v4"
+    api_key: ENV["ZHIPUAI_API_KEY"]
+    model: "glm-4-flash"
+    temperature: 0.7
+    # Optional sampling extras (forwarded to /chat/completions):
+    # top_p: 0.7
+    # max_tokens: 2048
+    # CodeGeeX-4: set `coding: true` (uses the coding base) and model: codegeex-4
+
+  # 2. 图文多模态 (free-tier glm-4v-flash; paid: glm-4v-plus)
+  glm_vision:
+    adapter: "zhipu"
+    url: "https://open.bigmodel.cn/api/paas/v4"
+    api_key: ENV["ZHIPUAI_API_KEY"]
+    model: "glm-4v-flash"
+
+  # 3. 向量模型 (embedding-3 supports custom dimensions: 256/512/1024/2048)
+  embedding:
+    adapter: "zhipu"
+    url: "https://open.bigmodel.cn/api/paas/v4"
+    api_key: ENV["ZHIPUAI_API_KEY"]
+    model: "embedding-3"
+    dimensions: 1024
+
+  # 4. 文生图 (free-tier cogview-3-flash; paid: cogview-4 / glm-image)
+  cogview:
+    adapter: "zhipu"
+    url: "https://open.bigmodel.cn/api/paas/v4"
+    api_key: ENV["ZHIPUAI_API_KEY"]
+    model: "cogview-3-flash"
+
+  # 5. 文生视频 (async: submit -> poll -> download; free-tier cogvideox-flash)
+  cogvideo:
+    adapter: "zhipu"
+    url: "https://open.bigmodel.cn/api/paas/v4"
+    api_key: ENV["ZHIPUAI_API_KEY"]
+    model: "cogvideox-flash"
+
+  # 6. 语音合成 (GLM-TTS)
+  glm_tts:
+    adapter: "zhipu"
+    url: "https://open.bigmodel.cn/api/paas/v4"
+    api_key: ENV["ZHIPUAI_API_KEY"]
+    model: "glm-tts"
+
+  # 7. 语音识别 (GLM-ASR-2512)
+  glm_asr:
+    adapter: "zhipu"
+    url: "https://open.bigmodel.cn/api/paas/v4"
+    api_key: ENV["ZHIPUAI_API_KEY"]
+    model: "glm-asr-2512"
+
+default_llm: "glm"
+
+template_path: "./templates"
+worker_path: "./workers"
+logger_file: "./logs/smart_prompt.log"

@@ -1,0 +1,151 @@
+# Anthropic Configuration for SmartPrompt
+# This configuration enables Anthropic Claude models
+
+# Adapter definitions
+adapters:
+  openai: "OpenAIAdapter"
+  anthropic: "AnthropicAdapter"
+
+# LLM configurations
+llms:
+  deepseek_anthropic:
+    adapter: anthropic
+    api_key: ENV["ANTHROPIC_AUTH_TOKEN"]
+    url: "https://api.deepseek.com/anthropic"
+    temperature: 0.7
+    max_tokens: 4096
+  deepseek:
+    adapter: openai
+    api_key: ENV["DSKEY"]
+    url: "https://api.deepseek.com"
+
+# Path configurations
+template_path: "./templates"
+worker_path: "./workers"
+logger_file: "./logs/smart_prompt.log"
+
+# Advanced settings
+advanced:
+  # Timeout settings (in seconds)
+  request_timeout: 240
+  connection_timeout: 30
+
+  # Retry settings
+  max_retries: 3
+  retry_delay: 2
+
+  # Rate limiting
+  requests_per_minute: 60
+
+# History Management Configuration
+# SmartPrompt provides intelligent conversation history management with session isolation,
+# automatic compression, and multiple context strategies.
+history:
+  # Cache Configuration
+  # Maximum number of sessions to keep in memory (LRU eviction)
+  cache_size: 100
+
+  # Default Session Configuration
+  # These settings apply to all sessions unless overridden
+  session_defaults:
+    max_messages: 100              # Maximum messages per session (older messages removed)
+    max_tokens: 4000               # Maximum tokens per session (enforced during context retrieval)
+    context_strategy: sliding_window  # Default strategy: sliding_window, relevance_based, summary_based, hybrid
+    preserve_system_messages: true # Always keep system messages regardless of limits
+
+  # Context Strategy Configurations
+  # Each strategy has specific parameters for fine-tuning behavior
+  strategies:
+    # Sliding Window: Keep the most recent N messages
+    sliding_window:
+      window_size: 10              # Number of recent messages to keep
+      preserve_system: true        # Always include system messages
+
+    # Relevance-Based: Select messages based on semantic similarity
+    relevance_based:
+      top_k: 10                    # Number of most relevant messages to select
+      recency_weight: 0.3          # Weight for recency (0.0-1.0)
+      relevance_weight: 0.7        # Weight for relevance (0.0-1.0)
+      embedding_service: null      # Optional: embedding service for semantic similarity
+
+    # Summary-Based: Automatically compress old messages into summaries
+    summary_based:
+      summary_threshold: 20        # Trigger summarization after this many messages
+      keep_recent: 5               # Number of recent messages to keep uncompressed
+      compression_ratio: 0.5       # Target compression ratio (0.0-1.0)
+
+    # Hybrid: Adaptively combine multiple strategies
+    hybrid:
+      mode: adaptive               # Mode: 'adaptive' (auto-select) or 'combined' (merge results)
+      sliding_window: {}           # Override sliding window config
+      relevance_based: {}          # Override relevance-based config
+      summary_based: {}            # Override summary-based config
+
+  # Compression Configuration
+  # Automatic summarization to reduce token usage
+  compression:
+    enabled: true                  # Enable automatic compression
+    auto_compress_threshold: 50    # Auto-compress when session exceeds this many messages
+    compression_ratio: 0.5         # Target compression ratio
+    llm_adapter: null              # LLM to use for summarization (uses default if null)
+
+  # Persistence Configuration
+  # Save and restore conversation history across restarts
+  persistence:
+    enabled: true                  # Enable persistence to disk
+    backend: filesystem            # Backend type: 'filesystem' (more backends coming soon)
+    storage_path: "./history_data" # Directory for storing session data
+    async: true                    # Use async writes for better performance
+
+  # Cleanup Configuration
+  # Automatic cleanup of old or expired sessions
+  cleanup:
+    auto_cleanup: false            # Enable automatic cleanup thread
+    cleanup_interval: 3600         # Cleanup interval in seconds (1 hour)
+    session_ttl: 86400             # Session time-to-live in seconds (24 hours)
+    cleanup_callback: null         # Optional: custom cleanup logic (Ruby proc)
+
+  # Monitoring Configuration
+  # Logging and metrics for debugging and monitoring
+  monitoring:
+    enabled: true                  # Enable monitoring and logging
+    log_level: info                # Log level: debug, info, warn, error
+    metrics_format: prometheus     # Metrics format: prometheus, json, hash
+
+# Example Configurations for Different Use Cases:
+#
+# 1. High-Volume Chat Application (optimize for performance):
+#    cache_size: 1000
+#    session_defaults:
+#      max_messages: 50
+#      max_tokens: 2000
+#      context_strategy: sliding_window
+#    cleanup:
+#      auto_cleanup: true
+#      session_ttl: 3600  # 1 hour
+#
+# 2. Long-Running Conversations (optimize for context retention):
+#    session_defaults:
+#      max_messages: 500
+#      max_tokens: 16000
+#      context_strategy: summary_based
+#    compression:
+#      enabled: true
+#      auto_compress_threshold: 100
+#
+# 3. Semantic Search Application (optimize for relevance):
+#    session_defaults:
+#      context_strategy: relevance_based
+#    strategies:
+#      relevance_based:
+#        top_k: 20
+#        recency_weight: 0.2
+#        relevance_weight: 0.8
+#
+# 4. Development/Testing (disable persistence and cleanup):
+#    persistence:
+#      enabled: false
+#    cleanup:
+#      auto_cleanup: false
+#    monitoring:
+#      log_level: debug

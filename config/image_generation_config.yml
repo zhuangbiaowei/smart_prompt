@@ -1,0 +1,22 @@
+# Configuration for SiliconFlow image generation.
+#
+# Get an API key from https://siliconflow.cn and export it as SILICONFLOW_API_KEY.
+# Available image models: Kwai-Kolors/Kolors, Qwen/Qwen-Image,
+# Qwen/Qwen-Image-Edit (image editing). See:
+# https://api-docs.siliconflow.cn/docs/api/images-generations-post
+
+adapters:
+  image_generation: "ImageGenerationAdapter"
+
+llms:
+  image_gen:
+    adapter: "image_generation"
+    url: "https://api.siliconflow.cn/v1/"
+    api_key: ENV["SILICONFLOW_API_KEY"]
+    # Kolors supports batch_size, guidance_scale and a range of image_size values.
+    model: "Kwai-Kolors/Kolors"
+
+default_llm: "image_gen"
+template_path: "./templates"
+worker_path: "./workers"
+logger_file: "./logs/smart_prompt.log"

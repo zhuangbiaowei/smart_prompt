@@ -6,6 +6,21 @@
 /pkg/
 /spec/reports/
 /tmp/
-.codex
+
+# Build artifacts
 *.gem
+
+# Editor / IDE / scratch
+/.kiro/
+/.vscode/
+/.codex
 /vendor/
+/test_streaming.rb
+/history-optimization-todo.md
+
+# Logs and generated outputs
+/logs/
+/generated_audio/
+/generated_images/
+/generated_videos/
+/history_data/

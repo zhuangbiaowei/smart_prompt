@@ -37,6 +37,8 @@ Gem::Specification.new do |spec|
   spec.add_dependency "retriable", "~> 3.1.2"
   spec.add_dependency "numo-narray", "~> 0.9.2.1"
   spec.add_dependency "base64", "~> 0.3.0"
+  spec.add_dependency "tiktoken_ruby", "~> 0.0.6"
+  spec.add_dependency "anthropic", "~> 1.14"
   # For more information and examples about making a new gem, check out our
   # guide at: https://bundler.io/guides/creating_gem.html
 end

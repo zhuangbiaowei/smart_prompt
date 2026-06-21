@@ -1,0 +1,63 @@
+# SenseNova (商汤 日日新) Configuration for SmartPrompt
+#
+# Get an API key from https://platform.sensenova.cn/console and export it as
+# SENSENOVA_API_KEY. A single SenseNovaAdapter covers all four model categories —
+# just point a different llm entry at each model.
+#
+# Two base hosts are in play (verified 2026-06-19):
+#   * token.sensenova.cn/v1          — the free-tier models (sensenova-6.7-flash-lite
+#                                       chat/vision, sensenova-u1-fast image). Works
+#                                       out-of-the-box with a free key.
+#   * api.sensenova.cn/compatible-mode/v2 — paid models (SenseChat-5, SenseNova-V6-Pro).
+#                                       Returns 403 if your key lacks that model.
+#   * api.sensenova.cn/v1/llm/embeddings — Cupido embeddings (native; paid).
+#
+# The image endpoint is NOT under compatible-mode (it 404s there) — it lives on
+# token.sensenova.cn/v1/images/generations and only accepts specific sizes
+# (see VALID_IMAGE_SIZES in sensenova_adapter.rb; default 2048x2048).
+
+adapters:
+  sensenova: "SenseNovaAdapter"
+
+llms:
+  # 1. 商量 文本对话 (free-tier; works with a free key)
+  sensechat:
+    adapter: "sensenova"
+    url: "https://token.sensenova.cn/v1"
+    api_key: ENV["SENSENOVA_API_KEY"]
+    model: "sensenova-6.7-flash-lite"
+    temperature: 0.7
+    # Optional SenseNova sampling extras (forwarded to /chat/completions):
+    # reasoning_effort: "medium"
+    # max_completion_tokens: 4096
+    # Paid alternative: url https://api.sensenova.cn/compatible-mode/v2, model SenseChat-5
+
+  # 2. 商量 图文多模态 (sensenova-6.7-flash-lite is natively multimodal)
+  sensevision:
+    adapter: "sensenova"
+    url: "https://token.sensenova.cn/v1"
+    api_key: ENV["SENSENOVA_API_KEY"]
+    model: "sensenova-6.7-flash-lite"
+    # Paid alternative: url https://api.sensenova.cn/compatible-mode/v2, model SenseNova-V6-Pro
+
+  # 3. Cupido 向量模型 (paid; native endpoint, non-OpenAI response shape)
+  senseembedding:
+    adapter: "sensenova"
+    url: "https://api.sensenova.cn/compatible-mode/v2"
+    embeddings_url: "https://api.sensenova.cn/v1/llm/embeddings"
+    api_key: ENV["SENSENOVA_API_KEY"]
+    model: "Cupido"
+
+  # 4. 秒画 文生图 (free-tier sensenova-u1-fast; native token.sensenova.cn base)
+  senseimage:
+    adapter: "sensenova"
+    url: "https://token.sensenova.cn/v1"
+    image_url: "https://token.sensenova.cn/v1/images/generations"
+    api_key: ENV["SENSENOVA_API_KEY"]
+    model: "sensenova-u1-fast"
+
+default_llm: "sensechat"
+
+template_path: "./templates"
+worker_path: "./workers"
+logger_file: "./logs/smart_prompt.log"

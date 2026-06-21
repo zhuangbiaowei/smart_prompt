@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "minitest/autorun"
+require "tempfile"
 require "smart_prompt"
 
 class ConversationGemmaTest < Minitest::Test
@@ -35,16 +36,23 @@ class ConversationGemmaTest < Minitest::Test
   def test_multimodal_prompt_orders_image_text_audio_for_gemma
     conversation = SmartPrompt::Conversation.new(@engine)
 
+    # media_part base64-encodes real local files (file_upload fix); use temp files.
+    png = Tempfile.new(["chart", ".png"]); png.binmode; png.write("fake-png"); png.close
+    wav = Tempfile.new(["audio", ".wav"]); wav.binmode; wav.write("fake-wav"); wav.close
+
     conversation.use_model("gemma4/12b")
-    conversation.image("file:///tmp/chart.png", token_budget: 560)
-    conversation.audio("file:///tmp/audio.wav")
+    conversation.image(png.path, token_budget: 560)
+    conversation.audio(wav.path)
     conversation.prompt("Summarize the image and audio.")
     conversation.send_msg
 
     content = @adapter.messages.last[:content]
-    assert_equal ["image", "text", "audio"], content.map { |part| part["type"] }
+    assert_equal ["image_url", "text", "input_audio"], content.map { |part| part["type"] }
     assert_equal 560, content.first["token_budget"]
     assert_equal "Summarize the image and audio.", content[1]["text"]
+  ensure
+    png&.unlink
+    wav&.unlink
   end
 
   def test_thinking_prepends_gemma_control_token_to_system_prompt

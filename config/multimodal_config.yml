@@ -1,0 +1,85 @@
+# Multimodal Configuration for SmartPrompt
+# This configuration enables multimodal capabilities with SiliconFlow
+
+# Adapter definitions
+adapters:
+  openai: "OpenAIAdapter"
+  multimodal: "MultimodalAdapter"
+
+# LLM configurations
+llms:
+  # Multimodal models for vision and video understanding
+  qwen_vl:
+    adapter: "multimodal"
+    url: "https://api.siliconflow.cn/v1/"
+    api_key: ENV["SILICONFLOW_API_KEY"]
+    default_model: "Qwen/Qwen2.5-VL-7B-Instruct"
+    temperature: 0.7
+
+  qwen_omni:
+    adapter: "multimodal"
+    url: "https://api.siliconflow.cn/v1/"
+    api_key: ENV["SILICONFLOW_API_KEY"]
+    default_model: "Qwen/Qwen3-Omni-7B-Instruct"
+    temperature: 0.7
+
+  deepseek_vl:
+    adapter: "multimodal"
+    url: "https://api.siliconflow.cn/v1/"
+    api_key: ENV["SILICONFLOW_API_KEY"]
+    default_model: "deepseek-ai/DeepSeek-VL2"
+    temperature: 0.7
+
+  # Text-only models for comparison
+  siliconflow_text:
+    adapter: "openai"
+    url: "https://api.siliconflow.cn/v1/"
+    api_key: ENV["SILICONFLOW_API_KEY"]
+    default_model: "Qwen/Qwen2.5-7B-Instruct"
+    temperature: 0.7
+
+# Default settings
+default_llm: "qwen_vl"
+
+# Path configurations
+template_path: "./templates"
+worker_path: "./workers"
+logger_file: "./logs/smart_prompt.log"
+
+# Multimodal specific settings
+multimodal:
+  # Default image detail level ("low", "high", "auto")
+  default_image_detail: "auto"
+
+  # Default video extraction settings
+  default_max_frames: 10
+  default_fps: 1
+
+  # Supported file formats
+  supported_image_formats:
+    - "jpg"
+    - "jpeg"
+    - "png"
+    - "gif"
+    - "bmp"
+    - "webp"
+
+  supported_video_formats:
+    - "mp4"
+    - "mov"
+    - "avi"
+    - "mkv"
+    - "webm"
+
+# Advanced settings
+advanced:
+  # Timeout settings (in seconds)
+  request_timeout: 240
+  connection_timeout: 30
+
+  # Retry settings
+  max_retries: 3
+  retry_delay: 2
+
+  # Rate limiting
+  requests_per_minute: 60

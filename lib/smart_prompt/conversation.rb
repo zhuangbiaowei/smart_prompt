@@ -20,8 +20,9 @@ module SmartPrompt
 
     attr_reader :messages, :last_response, :config_file
     attr_reader :last_call_id
+    attr_reader :session_id
 
-    def initialize(engine, tools = nil)
+    def initialize(engine, tools = nil, session_id = nil)
       SmartPrompt.logger.info "Create Conversation"
       @messages = []
       @engine = engine
@@ -37,6 +38,8 @@ module SmartPrompt
       @request_options = {}
       @pending_content_parts = []
       @thinking_enabled = nil
+      @session_id = session_id
+      @use_history_manager = false
     end
 
     def use(llm_name)
@@ -86,12 +89,29 @@ module SmartPrompt
     end
 
     def history_messages
-      @engine.history_messages
+      # If using HistoryManager, get messages from session
+      if @use_history_manager && @engine.history_manager
+        session_messages = @engine.history_manager.get_context(@session_id)
+        # Convert Message objects to hash format for backward compatibility
+        session_messages.map(&:to_h)
+      else
+        # Fall back to old implementation
+        @engine.history_messages
+      end
     end
 
     def add_message(msg, with_history = false)
       if with_history
-        history_messages << msg
+        # If HistoryManager is available, use it
+        if @engine.history_manager
+          @use_history_manager = true
+          # Ensure we have a session ID
+          @session_id ||= generate_default_session_id
+          @engine.history_manager.add_message(@session_id, msg)
+        else
+          # Fall back to old implementation
+          @engine.history_messages << msg
+        end
       end
       @messages << msg
     end
@@ -110,7 +130,7 @@ module SmartPrompt
       end
     end
 
-    def sys_msg(message, params)
+    def sys_msg(message, params = {})
       @sys_msg = thinking_system_message(message)
       add_message({ role: "system", content: @sys_msg }, params[:with_history])
       self
@@ -143,6 +163,15 @@ module SmartPrompt
       @messages << { role: "system", content: @sys_msg }
       @last_response
     end
+
+    private
+
+    def generate_default_session_id
+      # Generate a default session ID based on worker name or timestamp
+      "default_#{Time.now.to_i}_#{rand(1000)}"
+    end
+
+    public
 
     def send_msg(params = {})
       Retriable.retriable(RETRY_OPTIONS) do
@@ -317,6 +346,20 @@ module SmartPrompt
     def refresh_system_message(message)
       system_message = @messages.find { |item| (item[:role] || item["role"]) == "system" }
       system_message[:content] = message if system_message
+    end
+
+    public
+
+    def generate_image(prompt, params = {})
+      @current_llm.generate_image(prompt, params)
+    end
+
+    def edit_image(prompt, params = {})
+      @current_llm.edit_image(prompt, params)
+    end
+
+    def save_image(image_data, output_dir = "./output", filename_prefix = "generated_image")
+      @current_llm.save_image(image_data, output_dir, filename_prefix)
     end
   end
 end
