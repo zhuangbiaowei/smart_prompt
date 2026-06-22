@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+### Added
+- **硅基流动 (SiliconFlow) support** — unified `SiliconFlowAdapter` covering all REST categories: chat, multimodal vision (image/video/audio), embeddings (BAAI/bge-m3), rerank (bge-reranker-v2-m3), text-to-image (Kolors), image-edit (Qwen-Image-Edit), text-to-video (Wan2.2 async submit/poll), TTS (CosyVoice2), ASR (SenseVoiceSmall), and custom-voice management — with SSE streaming, reasoning_content passthrough, and the provider-correct async video flow (`POST /video/submit` → `requestId`, `POST /video/status` → `results.videos[].url`)
+
+### Changed
+- **Refactored the Zhipu / SenseNova / SiliconFlow adapters** — extracted byte-identical cross-provider logic into four shared concerns under `lib/smart_prompt/concerns/` (`HTTPClient`, `MultimodalMessages`, `OpenAIChatShaping`, `ImagePersistence`), and split the Zhipu and SiliconFlow adapters into per-modality capability modules under `lib/smart_prompt/adapters/<provider>/` (`Text` / `Embed` / `Image` / `Video` / `Voice` / `Rerank`). Pure internal refactor — no public-API change (`send_request` stays 5-arg, all DSL-delegated method names preserved), behavior unchanged. ~286 lines removed and the previously triplicated HTTP / multimodal / chat-shaping / image-persistence code now has a single source.
+
 ## [0.5.1] - 2026-06-21
 ### Added
 - **SenseNova (商汤日日新) support** — unified `SenseNovaAdapter` covering chat (商量), multimodal vision, Cupido embeddings, and 秒画 text-to-image, with SSE streaming and reasoning-field handling

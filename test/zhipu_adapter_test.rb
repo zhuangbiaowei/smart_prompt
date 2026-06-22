@@ -1,5 +1,6 @@
 require 'minitest/autorun'
 require './lib/smart_prompt'
+require_relative 'test_helper'
 
 class ZhipuAIAdapterTest < Minitest::Test
   def setup
@@ -126,5 +127,16 @@ class ZhipuAIAdapterTest < Minitest::Test
     a = SmartPrompt::ZhipuAIAdapter.new("api_key" => "k", "model" => nil)
     # No model -> raises before any network call
     assert_raises(SmartPrompt::Error) { a.generate_video("prompt", {}) }
+  end
+
+  def test_send_request_keeps_five_params
+    # conversation.rb routes request_options on parameters.length >= 6; must stay 5.
+    assert_equal 5, SmartPrompt::ZhipuAIAdapter.instance_method(:send_request).parameters.length
+  end
+
+  def test_embeddings_raises_when_no_vector
+    with_stub_method(@adapter, :http_post_json, { "data" => [] }) do
+      assert_raises(SmartPrompt::LLMAPIError) { @adapter.embeddings("text", "embedding-3") }
+    end
   end
 end

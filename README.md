@@ -14,6 +14,7 @@ SmartPrompt is a powerful Ruby gem that provides an elegant domain-specific lang
 - **Anthropic Claude**: Native support for Claude models with multimodal capabilities
 - **SenseNova (商汤日日新)**: One adapter covers chat (商量), multimodal vision (图文多模态), Cupido embeddings (向量), and 秒画 text-to-image — see `examples/sensenova_example.rb`
 - **智谱 AI (BigModel / GLM)**: One adapter covers all categories — chat (GLM-4), vision (GLM-4V), embeddings (embedding-3), text-to-image (CogView), text-to-video (CogVideoX), TTS (GLM-TTS), ASR (GLM-ASR) — see `examples/zhipu_example.rb`
+- **硅基流动 (SiliconFlow)**: One adapter covers all categories — chat, multimodal vision, embeddings, rerank, text-to-image (Kolors), image-edit (Qwen-Image-Edit), text-to-video (Wan2.2 async), TTS (CosyVoice2), ASR (SenseVoiceSmall) — see `examples/siliconflow_example.rb`
 - **Llama.cpp Integration**: Direct integration with local Llama.cpp servers
 - **Extensible Adapters**: Easy-to-extend adapter system for new LLM providers
 - **Unified Interface**: Same API regardless of the underlying LLM provider

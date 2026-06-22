@@ -1,0 +1,95 @@
+# 硅基流动 (SiliconFlow / SiliconCloud) Configuration for SmartPrompt
+#
+# Get an API key from https://cloud.siliconflow.cn/ and export it as
+# SILICONFLOW_API_KEY. A single SiliconFlowAdapter covers every model category —
+# just point a different llm entry at each model. Defaults use the free-tier models
+# so it runs out-of-box once the key is set.
+#
+# Base URL: https://api.siliconflow.cn/v1
+# Auth:     Authorization: Bearer <API_KEY>
+#
+# All categories share one base URL + Bearer auth. Notable SiliconFlow quirks
+# (handled by the adapter):
+#   * image response is images[].url  (not OpenAI's data[])
+#   * video is async:  POST /video/submit -> {requestId}; POST /video/status
+#     (body {requestId}) -> status Succeeded/InQueue/InProgress/Failed,
+#     result at results.videos[].url
+#   * rerank score field is relevance_score (not score)
+#   * TTS /audio/speech returns raw binary audio
+
+adapters:
+  siliconflow: "SiliconFlowAdapter"
+
+llms:
+  # 1. 文本对话 (free-tier Qwen2.5-7B; reasoning: deepseek-ai/DeepSeek-R1)
+  sf_chat:
+    adapter: "siliconflow"
+    url: "https://api.siliconflow.cn/v1"
+    api_key: ENV["SILICONFLOW_API_KEY"]
+    model: "Qwen/Qwen2.5-7B-Instruct"
+    temperature: 0.7
+    # Optional sampling extras (forwarded to /chat/completions):
+    # top_p: 0.7
+    # max_tokens: 2048
+    # enable_thinking: true   # for Qwen3 / GLM thinking models
+    # thinking_budget: 4096
+
+  # 2. 多模态 (vision; Qwen2.5-VL. audio/video needs an omni model like Qwen3-Omni)
+  sf_vision:
+    adapter: "siliconflow"
+    url: "https://api.siliconflow.cn/v1"
+    api_key: ENV["SILICONFLOW_API_KEY"]
+    model: "Qwen/Qwen2.5-VL-72B-Instruct"
+    # Paid alternatives: Qwen/Qwen3-VL-32B-Instruct, Qwen/Qwen3-Omni-30B-A3B-Instruct
+
+  # 3. 向量模型 (BAAI/bge-m3 — fixed 1024 dims. For custom dimensions use
+  #    Qwen/Qwen3-Embedding-8B and set `dimensions`.)
+  sf_embed:
+    adapter: "siliconflow"
+    url: "https://api.siliconflow.cn/v1"
+    api_key: ENV["SILICONFLOW_API_KEY"]
+    model: "BAAI/bge-m3"
+    # dimensions: 1024   # only honored by Qwen3-Embedding series
+
+  # 4. 重排 (rerank). relevance_score field, not score.
+  sf_rerank:
+    adapter: "siliconflow"
+    url: "https://api.siliconflow.cn/v1"
+    api_key: ENV["SILICONFLOW_API_KEY"]
+    model: "BAAI/bge-reranker-v2-m3"
+
+  # 5. 文生图 (free-tier Kolors; edit: Qwen/Qwen-Image-Edit-2509)
+  sf_image:
+    adapter: "siliconflow"
+    url: "https://api.siliconflow.cn/v1"
+    api_key: ENV["SILICONFLOW_API_KEY"]
+    model: "Kwai-Kolors/Kolors"
+
+  # 6. 文生视频 / 图生视频 (async; only Wan2.2 series is available)
+  sf_video:
+    adapter: "siliconflow"
+    url: "https://api.siliconflow.cn/v1"
+    api_key: ENV["SILICONFLOW_API_KEY"]
+    model: "Wan-AI/Wan2.2-T2V-A14B"
+    # image-to-video: model "Wan-AI/Wan2.2-I2V-A14B" and pass an image
+
+  # 7. 语音合成 (CosyVoice2; preset voices need the model prefix, e.g.
+  #    "FunAudioLLM/CosyVoice2-0.5B:alex")
+  sf_tts:
+    adapter: "siliconflow"
+    url: "https://api.siliconflow.cn/v1"
+    api_key: ENV["SILICONFLOW_API_KEY"]
+    model: "FunAudioLLM/CosyVoice2-0.5B"
+
+  # 8. 语音识别 (SenseVoiceSmall, free, multilingual)
+  sf_asr:
+    adapter: "siliconflow"
+    url: "https://api.siliconflow.cn/v1"
+    api_key: ENV["SILICONFLOW_API_KEY"]
+    model: "FunAudioLLM/SenseVoiceSmall"
+
+default_llm: "sf_chat"
+
+template_path: "./templates"
+worker_path: "./workers"
+logger_file: "./logs/smart_prompt.log"
