@@ -1,5 +1,6 @@
 require 'minitest/autorun'
 require './lib/smart_prompt'
+require_relative 'test_helper'
 
 class SenseNovaAdapterTest < Minitest::Test
   def setup
@@ -117,5 +118,16 @@ class SenseNovaAdapterTest < Minitest::Test
     assert_equal "1536x2752", @adapter.send(:resolve_image_size, "1536x2752")
     # An out-of-list size is still returned (the API will reject it) but logs a warning
     assert_equal "1024x1024", @adapter.send(:resolve_image_size, "1024x1024")
+  end
+
+  def test_send_request_keeps_five_params
+    # conversation.rb routes request_options on parameters.length >= 6; must stay 5.
+    assert_equal 5, SmartPrompt::SenseNovaAdapter.instance_method(:send_request).parameters.length
+  end
+
+  def test_embeddings_raises_when_no_vector
+    with_stub_method(@adapter, :http_post_json, { "data" => [] }) do
+      assert_raises(SmartPrompt::LLMAPIError) { @adapter.embeddings("text", "Cupido") }
+    end
   end
 end

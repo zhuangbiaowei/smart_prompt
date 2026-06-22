@@ -3,6 +3,10 @@ require "json"
 require "net/http"
 require "uri"
 require "fileutils"
+require_relative "concerns/image_persistence"
+require_relative "concerns/openai_chat_shaping"
+require_relative "concerns/multimodal_messages"
+require_relative "concerns/http_client"
 
 module SmartPrompt
   # Adapter for SenseNova (商汤 日日新) — the SenseCore large-model platform.
@@ -38,13 +42,37 @@ module SmartPrompt
       2048x2048 2752x1536 1536x2752 3072x1376 1344x3136 2560x720 3072x864
     ].freeze
     DEFAULT_IMAGE_SIZE = "2048x2048".freeze
-    SUPPORTED_IMAGE_FORMATS = %w[jpg jpeg png gif bmp webp].freeze
 
     # SenseNova sampling parameters forwarded from config to the chat request when present.
     CHAT_OPTIONAL_KEYS = %w[
       top_p top_k min_p presence_penalty frequency_penalty repetition_penalty
       reasoning_effort max_completion_tokens max_tokens
     ].freeze
+
+    include ImagePersistence
+    include OpenAIChatShaping
+    include MultimodalMessages
+    include HTTPClient
+
+    # ---- hooks for shared concerns -------------------------------------------
+    def provider_label
+      "SenseNova"
+    end
+
+    def default_image_prefix
+      "sensenova_image"
+    end
+
+    # SenseNova exposes the reasoning trace under `reasoning` (not reasoning_content)
+    # and also returns system_fingerprint — override the OpenAIChatShaping hooks so the
+    # shared shaper still produces the uniform reasoning_content / fingerprint output.
+    def reasoning_field_name
+      "reasoning"
+    end
+
+    def extra_top_level_fields(raw)
+      { "system_fingerprint" => raw["system_fingerprint"] }
+    end
 
     def initialize(config)
       super
@@ -166,16 +194,7 @@ module SmartPrompt
       images
     end
 
-    # Save one or many generated images to disk (Array from #generate_image or a single hash).
-    def save_image(image_data, output_dir = "./output", filename_prefix = "sensenova_image")
-      FileUtils.mkdir_p(output_dir)
-      images = image_data.is_a?(Array) ? image_data : [image_data]
-      saved = images.each_with_index.map do |img, index|
-        save_single_image(img, output_dir, "#{filename_prefix}_#{index + 1}")
-      end
-      SmartPrompt.logger.info "Saved #{saved.size} SenseNova image(s) to #{output_dir}"
-      saved
-    end
+    # (save_image / save_single_image provided by ImagePersistence concern.)
 
     private
 
@@ -192,171 +211,10 @@ module SmartPrompt
       body
     end
 
-    # Pass messages through, normalizing any multimodal content. Local image paths inside
-    # image_url.url are converted to data: URLs; http(s)/data URLs and plain text pass through.
-    def process_multimodal_messages(messages)
-      messages.map do |msg|
-        role = msg[:role] || msg["role"]
-        content = msg[:content] || msg["content"]
-        content = content.map { |item| normalize_content_item(item) } if content.is_a?(Array)
-        { "role" => role, "content" => content }
-      end
-    end
+    # (process_multimodal_messages / normalize_* / stringify_hash provided by MultimodalMessages concern.)
+    # (build_completion_response / build_stream_chunk provided by OpenAIChatShaping concern.)
 
-    def normalize_content_item(item)
-      return { "type" => "text", "text" => item.to_s } unless item.is_a?(Hash)
-
-      type = item[:type] || item["type"]
-      if type == "image_url"
-        iu = item[:image_url] || item["image_url"]
-        url = iu.is_a?(Hash) ? (iu[:url] || iu["url"]) : iu
-        { "type" => "image_url", "image_url" => { "url" => normalize_image_url(url) } }
-      else
-        stringify_hash(item)
-      end
-    end
-
-    def normalize_image_url(url)
-      return url if url.nil?
-      return url if url.start_with?("http://", "https://", "data:")
-
-      raise Error, "Image file not found: #{url}" unless File.exist?(url)
-      ext = File.extname(url).downcase.delete(".")
-      raise Error, "Unsupported image format: #{ext}" unless SUPPORTED_IMAGE_FORMATS.include?(ext)
-      mime = ext == "jpg" ? "jpeg" : ext
-      "data:image/#{mime};base64,#{Base64.strict_encode64(File.binread(url))}"
-    end
-
-    # ---- response shaping -----------------------------------------------------
-
-    # Convert a non-streaming SenseNova response into the OpenAI completion shape the
-    # rest of SmartPrompt expects, surfacing the reasoning model's `reasoning` field.
-    def build_completion_response(raw)
-      msg = raw.dig("choices", 0, "message") || {}
-      message = { "role" => msg["role"] || "assistant" }
-      message["content"] = msg["content"]
-      message["reasoning_content"] = msg["reasoning"] if msg["reasoning"]
-      message["tool_calls"] = msg["tool_calls"] if msg["tool_calls"]
-
-      response = {
-        "id"      => raw["id"],
-        "object"  => raw["object"] || "chat.completion",
-        "created" => raw["created"],
-        "model"   => raw["model"],
-        "choices" => [{
-          "index"         => 0,
-          "message"       => message,
-          "finish_reason" => raw.dig("choices", 0, "finish_reason"),
-        }],
-      }
-      response["usage"] = raw["usage"] if raw["usage"]
-      response["system_fingerprint"] = raw["system_fingerprint"] if raw["system_fingerprint"]
-      response
-    end
-
-    # Convert one SSE event from SenseNova's stream into an OpenAI-style streaming chunk.
-    # The key remap is delta.reasoning -> delta.reasoning_content, which is what
-    # Engine#@stream_proc reads for reasoning models.
-    def build_stream_chunk(data)
-      chunk = {
-        "id"      => data["id"],
-        "object"  => data["object"],
-        "created" => data["created"],
-        "model"   => data["model"],
-      }
-      chunk["usage"]             = data["usage"]             if data["usage"]
-      chunk["system_fingerprint"] = data["system_fingerprint"] if data["system_fingerprint"]
-
-      choices = data["choices"] || []
-      if choices.any?
-        delta = choices[0]["delta"] || {}
-        new_delta = {}
-        new_delta["role"]              = delta["role"]      if delta["role"]
-        new_delta["content"]           = delta["content"]   if delta["content"]
-        new_delta["reasoning_content"] = delta["reasoning"] if delta["reasoning"]
-        new_delta["tool_calls"]        = delta["tool_calls"] if delta["tool_calls"]
-        chunk["choices"] = [{
-          "index"         => choices[0]["index"] || 0,
-          "delta"         => new_delta,
-          "finish_reason" => choices[0]["finish_reason"],
-        }]
-      else
-        # Usage-only final event (choices is an empty array).
-        chunk["choices"] = []
-      end
-      chunk
-    end
-
-    # ---- HTTP -----------------------------------------------------------------
-
-    def http_post_json(url, body)
-      uri = URI.parse(url)
-      http = Net::HTTP.new(uri.host, uri.port)
-      http.use_ssl     = (uri.scheme == "https")
-      http.open_timeout = 30
-      http.read_timeout = 240
-
-      request = Net::HTTP::Post.new(uri.request_uri)
-      request["Content-Type"]  = "application/json"
-      request["Authorization"] = "Bearer #{@api_key}"
-      request.body = body.to_json
-
-      SmartPrompt.logger.debug "SenseNova POST #{uri} body=#{body.to_json}"
-      response = http.request(request)
-
-      if response.is_a?(Net::HTTPSuccess)
-        JSON.parse(response.body)
-      else
-        SmartPrompt.logger.error "SenseNova API error: #{response.code} - #{response.body}"
-        raise LLMAPIError, "SenseNova API error: #{response.code} - #{response.body}"
-      end
-    end
-
-    # POST with stream:true and yield each parsed SSE `data:` payload to the block.
-    def stream_chat(url, body)
-      uri = URI.parse(url)
-      http = Net::HTTP.new(uri.host, uri.port)
-      http.use_ssl      = (uri.scheme == "https")
-      http.open_timeout  = 30
-      http.read_timeout  = 300
-
-      request = Net::HTTP::Post.new(uri.request_uri)
-      request["Content-Type"]  = "application/json"
-      request["Authorization"] = "Bearer #{@api_key}"
-      request["Accept"]        = "text/event-stream"
-      request.body = body.to_json
-
-      buffer = ""
-      done = false
-
-      http.request(request) do |response|
-        unless response.is_a?(Net::HTTPSuccess)
-          raise LLMAPIError, "SenseNova stream error: #{response.code} - #{response.body}"
-        end
-
-        response.read_body do |segment|
-          break if done
-          buffer << segment
-          while (idx = buffer.index("\n"))
-            line = buffer.slice!(0, idx + 1).strip
-            next if line.empty? || !line.start_with?("data:")
-
-            payload = line.sub(/\Adata:\s*/, "")
-            if payload == "[DONE]"
-              done = true
-              break
-            end
-
-            begin
-              data = JSON.parse(payload)
-            rescue JSON::ParserError
-              next
-            end
-            yield data
-          end
-        end
-      end
-    end
+    # (http_post_json / stream_chat provided by HTTPClient concern.)
 
     # Resolve the image size: default to 2048x2048 when none given, and warn (but still
     # send) when the caller asks for a size sensenova-u1-fast does not accept.
@@ -370,41 +228,6 @@ module SmartPrompt
       size
     end
 
-    def save_single_image(image_data, output_dir, filename)
-      if image_data[:b64_json]
-        file_path = File.join(output_dir, "#{filename}.png")
-        File.binwrite(file_path, Base64.decode64(image_data[:b64_json]))
-      elsif image_data[:url]
-        uri = URI.parse(image_data[:url])
-        response = Net::HTTP.get_response(uri)
-        raise Error, "Failed to download image from URL: #{response.code}" unless response.is_a?(Net::HTTPSuccess)
-
-        ext = case response["content-type"]
-              when "image/jpeg", "image/jpg" then "jpg"
-              when "image/png"               then "png"
-              when "image/gif"               then "gif"
-              when "image/webp"              then "webp"
-              else "png"
-              end
-        file_path = File.join(output_dir, "#{filename}.#{ext}")
-        File.binwrite(file_path, response.body)
-      else
-        raise Error, "No image data available to save"
-      end
-      file_path
-    end
-
-    def stringify_hash(hash)
-      case hash
-      when Hash
-        hash.each_with_object({}) do |(k, v), memo|
-          memo[k.to_s] = stringify_hash(v)
-        end
-      when Array
-        hash.map { |v| stringify_hash(v) }
-      else
-        hash
-      end
-    end
+    # (stringify_hash provided by MultimodalMessages concern.)
   end
 end
