@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    smart_prompt (0.5.1)
+    smart_prompt (0.5.2)
       anthropic (~> 1.14)
       base64 (~> 0.3.0)
       json (~> 2.19.4)
@@ -88,7 +88,7 @@ CHECKSUMS
   retriable (3.1.2) sha256=0a5a5d0ca4ba61a76fb31a17ab8f7f80281beb040c329d34dfc137a1398688e0
   ruby-openai (8.3.0) sha256=566dc279c42f4afed68a7a363dce2e594078abfc36b4e043102020b9a387ca69
   safe_ruby (1.0.5) sha256=ec43cd08da87b754c5ae741883f45d44e5d867deca9c46e01a70b6ff20c0bb20
-  smart_prompt (0.5.1)
+  smart_prompt (0.5.2)
   standardwebhooks (1.1.0) sha256=356ba711c14def4fb27310e4163b26bd5cccf325212c3440cabadd825e4be11f
   tiktoken_ruby (0.0.16-x86_64-linux) sha256=4d970b8e68a86972ec81799306116480b33a558c06bb4fe0092852280a4b76b2
   uri (1.1.1) sha256=379fa58d27ffb1387eaada68c749d1426738bd0f654d812fcc07e7568f5c57c6
