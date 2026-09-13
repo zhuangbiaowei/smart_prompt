@@ -2,6 +2,10 @@ module SmartPrompt
   class Engine
     attr_reader :config_file, :config, :adapters, :current_adapter, :llms, :models, :templates
     attr_reader :stream_response, :history_manager
+    # Optional callable applied to every system message in Conversation#sys_msg.
+    # Lets an embedding application inject its own system-prompt policy (e.g. a
+    # native tool-call protocol) without monkey-patching WorkerContext.
+    attr_accessor :system_message_transformer
 
     def initialize(config_file)
       @config_file = config_file
@@ -12,6 +16,7 @@ module SmartPrompt
       @current_workers = {}
       @history_messages = []
       @history_manager = nil
+      @system_message_transformer = nil
       load_config(config_file)
       SmartPrompt.logger.info "Started create the SmartPrompt engine."
       @stream_proc = Proc.new do |chunk, _bytesize|

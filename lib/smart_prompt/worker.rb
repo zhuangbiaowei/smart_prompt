@@ -57,18 +57,42 @@ module SmartPrompt
       @params = params
       @engine = engine
       @proc = proc
+      @transient_messages = []
+    end
+
+    # Add a user prompt to the current request only, without persisting it to
+    # HistoryManager. Progress, retry notes and hard-intervention text are
+    # snapshots, not conversation history; persisting one large user message per
+    # round would evict the assistant/tool evidence we need to retain.
+    def transient_prompt(content)
+      @transient_messages << content
+      @conversation.prompt(content, with_history: false)
     end
 
     def method_missing(method, *args, &block)
       if @conversation.respond_to?(method)
         if method == :send_msg
-          if @proc == nil
-            @conversation.send_msg(params)
+          send_params = params
+          if params[:with_history] && !@transient_messages.empty?
+            # The default send path would send *only* history_messages when
+            # with_history=true, silently dropping the transient prompt just
+            # added to @conversation.messages. Merge both sources for this
+            # request and use the ordinary send path. When there is no transient
+            # prompt, keep the original with_history send so the persisted
+            # prompt pattern is not duplicated.
+            prepare_transient_history_request!
+            send_params = params.merge(with_history: false)
+          end
+          if @proc.nil?
+            @conversation.send_msg(send_params)
           else
-            @conversation.send_msg_by_stream(params, &@proc)
+            @conversation.send_msg_by_stream(send_params, &@proc)
           end
         elsif method == :sys_msg
-          @conversation.sys_msg(*args)
+          # The system message always belongs to the current request. Its
+          # durable session copy is upserted by Conversation#sys_msg so a worker
+          # loop never accumulates one preserved system message per round.
+          @conversation.sys_msg(*args, with_history: params[:with_history])
         elsif method == :prompt
           @conversation.prompt(*args, with_history: params[:with_history])
         else
@@ -80,7 +104,7 @@ module SmartPrompt
     end
 
     def respond_to_missing?(method, include_private = false)
-      @conversation.respond_to?(method) || super
+      method == :transient_prompt || @conversation.respond_to?(method) || super
     end
 
     def params
@@ -106,6 +130,44 @@ module SmartPrompt
     def call_worker_by_stream(worker_name, params = {}, proc)
       worker = Worker.new(worker_name, @engine)
       worker.execute_by_stream(params, proc)
+    end
+
+    private
+
+    # Merge the persisted session history with the transient prompts recorded
+    # this round. Persisted prompts stay in history_messages and are therefore
+    # already part of the request, so only the transient user messages need to
+    # be appended to avoid duplication.
+    def prepare_transient_history_request!
+      current = Array(@conversation.messages)
+      history = session_history
+      SmartPrompt.logger&.info(
+        "[SmartPrompt history] session=#{@params[:session_id]} " \
+        "messages=#{history.size} roles=#{history.map { |message| message_role(message) }.tally}"
+      )
+      system = current.select { |message| message_role(message) == "system" }
+      historical_turns = history.reject { |message| message_role(message) == "system" }
+      transient_turn = @transient_messages.map { |content| { role: "user", content: content } }
+      @conversation.instance_variable_set(:@messages, system + historical_turns + transient_turn)
+    end
+
+    def session_history
+      if @engine.respond_to?(:history_manager) && @engine.history_manager
+        sid = @params[:session_id]
+        raise ArgumentError, "history requires an explicit session_id" if sid.to_s.strip.empty?
+
+        @engine.history_manager.get_context(sid).map(&:to_h)
+      elsif @engine.respond_to?(:history_messages)
+        Array(@engine.history_messages)
+      else
+        []
+      end
+    end
+
+    def message_role(message)
+      return message.role.to_s if message.respond_to?(:role)
+
+      (message[:role] || message["role"]).to_s
     end
   end
 end

@@ -12,6 +12,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - **Refactored the Zhipu / SenseNova / SiliconFlow adapters** — extracted byte-identical cross-provider logic into four shared concerns under `lib/smart_prompt/concerns/` (`HTTPClient`, `MultimodalMessages`, `OpenAIChatShaping`, `ImagePersistence`), and split the Zhipu and SiliconFlow adapters into per-modality capability modules under `lib/smart_prompt/adapters/<provider>/` (`Text` / `Embed` / `Image` / `Video` / `Voice` / `Rerank`). Pure internal refactor — no public-API change (`send_request` stays 5-arg, all DSL-delegated method names preserved), behavior unchanged. ~286 lines removed and the previously triplicated HTTP / multimodal / chat-shaping / image-persistence code now has a single source.
 
+## [0.5.4] - 2026-09-13
+### Added
+- `Engine#system_message_transformer` hook — an optional callable applied to every system message in `Conversation#sys_msg`, so embedding applications can inject system-prompt policy (e.g. a native tool-call protocol) without monkey-patching `WorkerContext`
+- `WorkerContext#transient_prompt` — adds a user prompt to the current request only, without persisting it to `HistoryManager`
+- `HistoryManager#upsert_system_message` — keeps exactly one durable system message per session (idempotent no-op when unchanged)
+
+### Fixed
+- `Message` serialization now preserves `tool_calls` / `tool_call_id` / `reasoning_content`, so HistoryManager round-trips no longer produce malformed tool requests (missing tool-call pairing) or drop DeepSeek-style reasoning content
+- `Session` trimming now operates in "pair groups", keeping an `assistant(tool_calls)` message together with the consecutive `tool` results that follow it — preventing orphan `tool` messages that the OpenAI-compatible API rejects with HTTP 400
+- `WorkerContext#sys_msg` now forwards `with_history` to `Conversation#sys_msg` (previously system messages never reached history); the durable copy is upserted rather than appended, so worker loops never accumulate one system message per round
+- `WorkerContext#send_msg` with `with_history: true` now includes `transient_prompt` messages in the request (previously they were silently dropped); the persisted-prompt pattern still sends history directly, so nothing is duplicated
+
 ## [0.5.1] - 2026-06-21
 ### Added
 - **SenseNova (商汤日日新) support** — unified `SenseNovaAdapter` covering chat (商量), multimodal vision, Cupido embeddings, and 秒画 text-to-image, with SSE streaming and reasoning-field handling

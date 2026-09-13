@@ -131,8 +131,9 @@ module SmartPrompt
     end
 
     def sys_msg(message, params = {})
-      @sys_msg = thinking_system_message(message)
-      add_message({ role: "system", content: @sys_msg }, params[:with_history])
+      @sys_msg = thinking_system_message(transform_system_message(message))
+      upsert_system_message(@sys_msg) if params[:with_history]
+      add_message({ role: "system", content: @sys_msg }, false)
       self
     end
 
@@ -169,6 +170,29 @@ module SmartPrompt
     def generate_default_session_id
       # Generate a default session ID based on worker name or timestamp
       "default_#{Time.now.to_i}_#{rand(1000)}"
+    end
+
+    # Apply an optional engine-level hook so embedding applications can inject
+    # their own system-prompt policy (e.g. a native tool-call protocol) without
+    # monkey-patching WorkerContext.
+    def transform_system_message(message)
+      transformer = @engine.system_message_transformer if @engine.respond_to?(:system_message_transformer)
+      transformer ? transformer.call(message) : message
+    end
+
+    # Keep exactly one durable system message per session. Repeated rounds
+    # replace the persisted system copy instead of appending snapshots of
+    # changing progress/repair state forever.
+    def upsert_system_message(content)
+      if @engine.history_manager
+        @use_history_manager = true
+        @session_id ||= generate_default_session_id
+        @engine.history_manager.upsert_system_message(@session_id, content)
+      else
+        messages = Array(@engine.history_messages)
+        messages.delete_if { |item| (item[:role] || item["role"]).to_s == "system" }
+        messages << { role: "system", content: content }
+      end
     end
 
     public

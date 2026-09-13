@@ -104,6 +104,28 @@ module SmartPrompt
       end
     end
 
+    # Keep exactly one durable system message per session. Repeated worker rounds
+    # replace the persisted system copy instead of appending snapshots of
+    # changing progress/repair state forever. Returns false when the session
+    # already held an identical single system message (idempotent no-op).
+    def upsert_system_message(session_id, content, options = {})
+      begin
+        session = get_session(session_id, options)
+        systems = session.messages.select(&:system_message?)
+        if systems.one? && systems.first.content.to_s == content.to_s
+          return false
+        end
+
+        session.messages.delete_if(&:system_message?)
+      rescue => e
+        log_error "Failed to upsert system message in session #{session_id}", e
+        raise HistoryManagerError, "Failed to upsert system message: #{e.message}"
+      end
+
+      add_message(session_id, { role: "system", content: content.to_s }, options)
+      true
+    end
+
     # Get context (messages) from a session
     def get_context(session_id, max_tokens = nil, strategy = nil)
       begin

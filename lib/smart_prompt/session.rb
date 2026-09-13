@@ -90,20 +90,27 @@ module SmartPrompt
       end
     end
 
-    # Remove oldest non-system messages to meet message count limit
+    # Remove oldest non-system messages to meet message count limit, trimming
+    # in "pair groups" so an assistant(tool_calls) message is never separated
+    # from the tool results that follow it.
     def remove_oldest_messages_to_limit(max_messages)
       system_messages = @messages.select(&:system_message?)
       non_system_messages = @messages.reject(&:system_message?)
 
-      # Keep only the most recent non-system messages
-      messages_to_keep = max_messages - system_messages.length
-      messages_to_keep = [messages_to_keep, 0].max
+      messages_to_keep = [max_messages - system_messages.length, 0].max
 
-      kept_non_system = non_system_messages.last(messages_to_keep)
-      @messages = system_messages + kept_non_system
+      kept = []
+      count = 0
+      pair_groups(non_system_messages).reverse_each do |group|
+        break if count + group.length > messages_to_keep
+
+        kept.unshift(group)
+        count += group.length
+      end
+      @messages = system_messages + kept.flatten
     end
 
-    # Remove oldest non-system messages to meet token limit
+    # Remove oldest non-system messages to meet token limit, also in pair groups.
     def remove_oldest_messages_to_token_limit(max_tokens)
       system_messages = @messages.select(&:system_message?)
       non_system_messages = @messages.reject(&:system_message?)
@@ -111,21 +118,45 @@ module SmartPrompt
       system_tokens = system_messages.sum { |msg| msg.token_count || 0 }
       available_tokens = max_tokens - system_tokens
 
-      # Keep adding messages from the end until we hit the token limit
-      kept_messages = []
+      kept = []
       current_tokens = 0
+      pair_groups(non_system_messages).reverse_each do |group|
+        group_tokens = group.sum { |msg| msg.token_count || 0 }
+        break if current_tokens + group_tokens > available_tokens
 
-      non_system_messages.reverse_each do |msg|
-        msg_tokens = msg.token_count || 0
-        if current_tokens + msg_tokens <= available_tokens
-          kept_messages.unshift(msg)
-          current_tokens += msg_tokens
+        kept.unshift(group)
+        current_tokens += group_tokens
+      end
+      @messages = system_messages + kept.flatten
+    end
+
+    # Split non-system messages into groups where an assistant message that
+    # carries tool_calls stays together with the consecutive tool results that
+    # follow it. Every other message forms its own single-element group.
+    def pair_groups(messages)
+      groups = []
+      i = 0
+      while i < messages.length
+        msg = messages[i]
+        if assistant_with_tool_calls?(msg)
+          group = [msg]
+          i += 1
+          while i < messages.length && messages[i].role.to_s == "tool"
+            group << messages[i]
+            i += 1
+          end
+          groups << group
         else
-          break
+          groups << [msg]
+          i += 1
         end
       end
+      groups
+    end
 
-      @messages = system_messages + kept_messages
+    def assistant_with_tool_calls?(msg)
+      msg.role.to_s == "assistant" &&
+        msg.respond_to?(:tool_calls) && msg.tool_calls && !msg.tool_calls.empty?
     end
 
     # Calculate importance score for a message
